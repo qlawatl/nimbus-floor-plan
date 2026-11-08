@@ -12,7 +12,7 @@ LAST90 = "DATE '2026-08-03'"
 
 pos = df("""
 SELECT p.position_id id, p.asset_class cls, p.name, p.site, p.building, p.area, p.system,
-       s.asset_tag, s.manufacturer, s.model, s.serial, i.installed_from
+       s.asset_id, s.asset_tag, s.manufacturer, s.model, s.serial, i.installed_from
 FROM positions p
 JOIN position_install i ON i.position_id = p.position_id AND i.installed_to IS NULL
 JOIN assets s ON s.asset_id = i.asset_id
@@ -273,6 +273,17 @@ for r in cw_free.itertuples():
     w, act, po_, inv_ = wo_part(r.wo_id)
     CH.setdefault(r.id, []).append(dict(a=None, al=None, w=w, act=act, po=po_, inv=inv_))
 
+
+# ------------------------------------------------------------------ asset lineage (storeroom -> position -> repair depot ...)
+mv_df = df("""SELECT asset_id, ts, event, from_loc, to_loc, ref, note FROM asset_moves ORDER BY asset_id, ts""")
+as_df = df("""SELECT asset_id, asset_tag, asset_class, manufacturer, model, serial FROM assets""")
+LIN = {}
+for a in as_df.itertuples():
+    LIN[a.asset_id] = dict(tag=a.asset_tag, cls=a.asset_class, mfr=a.manufacturer, model=a.model, serial=a.serial, mv=[])
+for m in mv_df.itertuples():
+    LIN[m.asset_id]["mv"].append([tmin(m.ts), sidx(m.event), sidx(m.from_loc), sidx(m.to_loc), m.ref if isinstance(m.ref, str) else None, sidx(m.note)])
+STORES = {r.storeroom_id: dict(name=r.name, site=None if pd.isna(r.site) else r.site) for r in df("SELECT * FROM storerooms").itertuples()}
+
 # ------------------------------------------------------------------ assemble
 def g(frame, pid, col, default=0):
     try:
@@ -289,7 +300,7 @@ for r in pos.itertuples():
     fl = {s.step: dict(n=int(s.n), lag=s.lag, amt=None if pd.isna(s.amt) else s.amt) for s in flow[flow.id == pid].itertuples()}
     P[pid] = dict(
         cls=r.cls, name=r.name, site=r.site, b=r.building, area=r.area, system=r.system,
-        asset=dict(tag=r.asset_tag, mfr=r.manufacturer, model=r.model, serial=r.serial, since=f"{r.installed_from:%Y-%m-%d}"),
+        asset=dict(id=r.asset_id, tag=r.asset_tag, mfr=r.manufacturer, model=r.model, serial=r.serial, since=f"{r.installed_from:%Y-%m-%d}"),
         hist=[dict(tag=h.asset_tag, mfr=h.manufacturer, model=h.model, frm=f"{h.installed_from:%Y-%m-%d}",
                    to=None if pd.isna(h.installed_to) else f"{h.installed_to:%Y-%m-%d}") for h in hist[hist.id == pid].itertuples()],
         k={col: g(T, pid, col) for col in ["alarms", "crit", "alerts", "wos", "cm", "labor", "spend", "alarms90", "spend90", "cm90"]}
@@ -303,7 +314,7 @@ for r in pos.itertuples():
     )
 
 data = dict(months=MONTHS, positions=P, feeds=feeds.values.tolist(), names=dict(zip(names.id, names.name)),
-            findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD,
+            findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD, lineage=LIN, stores=STORES,
             asof="2026-10-31")
 json.dump(data, open(OUT, "w"), separators=(",", ":"), default=float)
 print(len(json.dumps(data)) // 1024, "KB;", len(findings), "position findings;", len(portfolio), "portfolio findings")

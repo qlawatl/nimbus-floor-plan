@@ -13,6 +13,8 @@ Open the artifact link, or `index.html` in any browser.
 
 **Triple-tap** anywhere to go back to the main page.
 
+**Site map and lineage:** "‹ Zoom out: site map" shows both buildings, the storeroom and offsite locations. Every asset has a **Lineage** button that draws where it has been (warehouse → storeroom bin → positions → repair depot …) and where it was 6 months ago.
+
 Also included: search (units, alarm codes, vendors, technicians), building tiles, the month slider / ▶, and a detail panel with Overview, Flow, Connections and Activity tabs.
 
 ## Rebuilding
