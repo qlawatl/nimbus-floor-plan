@@ -2,6 +2,12 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v8 — 2026-11-08 · branch `release/v8`
+- **Table view.** The **▦ Table** button at the end of the breadcrumbs shows your current drill position as a grid, and **◎ Bubbles** switches back. Both follow the same navigation and breadcrumbs, so switching never loses your place.
+  - **Unit or room level:** one row per record type (alarms, alerts, WOs, POs, invoices, labor, findings) with counts and a summary, plus the connected units (↑ feeds / ↓ fed by) or the units in the room. Tap a row to drill in.
+  - **Metric level:** the drill-down groups (alarm code, vendor, technician… or units for a room) with records and value; tap a group to filter by it (a chip shows the filter, × clears it), or › to open that unit. Below that is the record grid with sortable columns (tap a header; tap again to reverse), a text filter, a row count, and loading in blocks of 25. Tap a row to follow its lifecycle.
+  - If a details list is open when you switch, the table opens already filtered to that group.
+
 ## v7.3 — 2026-11-08 · branch `release/v7.3`
 - **Fix:** while a details list was open, tapping the ‹ Back circle (or anywhere outside the list) did nothing. Now it closes the list and returns to the bubbles. Double-tap and the breadcrumbs still work as before.
 
