@@ -141,6 +141,9 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .subwin .foot { align-items: center; justify-content: space-between; }
 .dthint { font-size: 12px; font-weight: 600; color: var(--accent); }
 #subwin { touch-action: manipulation; }
+.more { display: block; width: 100%; margin: 8px 0 4px; padding: 11px; border: 1px dashed var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, var(--sheet)); color: var(--accent); font: 600 14px var(--font-ui); cursor: pointer; }
+.endnote { text-align: center; font-size: 12px; color: var(--ink-3); padding: 8px 0 4px; }
+.peek { max-height: 72%; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -274,7 +277,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v6.2 · synthetic data · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v6.3 · synthetic data · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -503,7 +506,7 @@ BLD.forEach(b => Object.keys(ZNAME).forEach(z => {
     zone: z, b, members, cls: ZSHORT[z], title: ZNAME[z], sub2: b,
     k: { alarms: sum(p => p.k.alarms), alarms90: sum(p => p.k.alarms90), alerts: sum(p => p.k.alerts), wos: sum(p => p.k.wos), open: sum(p => p.k.open),
          spend: sum(p => p.k.spend), spend90: sum(p => p.k.spend90), labor: sum(p => p.k.labor), pm: sum(p => p.k.pm), pmlate: sum(p => p.k.pmlate) },
-    flow: { 'wo>po': { amt: sum(p => (p.flow['wo>po'] || {}).amt), n: sum(p => (p.flow['wo>po'] || {}).n) } },
+    flow: { 'wo>po': { amt: sum(p => (p.flow['wo>po'] || {}).amt), n: sum(p => (p.flow['wo>po'] || {}).n) }, 'po>invoice': { n: sum(p => (p.flow['po>invoice'] || {}).n) } },
     ma: M.map((_, i) => sum(p => p.ma[i])), ms: M.map((_, i) => sum(p => p.ms[i])), mc: M.map((_, i) => sum(p => p.mc[i])),
     findings: fsAll.sort((a, c) => SEVR[c.sev] - SEVR[a.sev]), worst: fsAll.reduce((m, f) => Math.max(m, SEVR[f.sev]), 0),
   };
@@ -543,6 +546,10 @@ function openBurst(id) {
       sub: fs.length ? (Z ? `${new Set(fs.map(f => f.id)).size} units` : fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Findings → Overview', m: 'findings',
       r: base * (fs.length ? 1.45 : 1), f: w === 3 ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : w === 2 ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq0)' },
   ];
+  const cnt = { alarms: mo == null ? k.alarms : p.ma[mo], alerts: k.alerts, wos: mo == null ? k.wos : p.mc[mo], po: (fl['wo>po'] || {}).n || 0,
+    inv: (fl['po>invoice'] || {}).n || 0, labor: Z ? p.members.reduce((a, x) => a + laborN(x), 0) : laborN(id), findings: fs.length };
+  sats.forEach(s => s.n = cnt[s.m] || 0);
+  const maxN = Math.max(1, ...sats.map(s => s.n));
   const ups = Z ? [] : up[id] || [], downs = Z ? [] : down[id] || [];
   const maxR = Math.max(...sats.map(s => s.r)), minR = Math.min(...sats.map(s => s.r)), rC = base * 1.25;
   const topBand = ups.length ? 150 : 50, botBand = downs.length ? 110 : 30;
@@ -560,7 +567,7 @@ function openBurst(id) {
     const a = -Math.PI / 2 + i * 2 * Math.PI / sats.length, x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
     const fs1 = Math.round(Math.max(13, s.r * 0.42)), fs2 = Math.max(10, Math.round(fs1 * .72)), fs3 = Math.max(9, Math.round(fs1 * .62));
     hits.push({ x, y, r: s.r, id, tab: s.go, name: s.c, m: s.m, kind: 'sub', vs: s.v });
-    h += `<line class="tether wt" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke-width:${(1.5 + 10 * (s.r - minR) / Math.max(1, maxR - minR)).toFixed(1)}"/>`;
+    h += `<line class="tether wt" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke-width:${(1.5 + 10 * s.n / maxN).toFixed(1)}"/>`;
     h += satG(hits.length - 1, x, y, `<circle r="${s.r}" fill="${s.f}" stroke="var(--line)" stroke-width="1.2"/>
       <text y="${s.sub ? -fs3 * .3 : fs1 * .1}" text-anchor="middle" font-size="${fs1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(s.v)}</text>
       <text y="${s.sub ? fs2 + 1 : fs2 + 3}" text-anchor="middle" font-size="${fs2}" fill="var(--ink-2)">${esc(s.c)}</text>
@@ -660,7 +667,9 @@ function drillZone(zid, m) {
     alarms: mo == null ? k.alarms : p.ma[mo], alerts: k.alerts, wos: mo == null ? k.wos : p.mc[mo], po: (p.flow['wo>po'] || {}).amt || 0,
     inv: mo == null ? k.spend : p.ms[mo], labor: k.labor, findings: worst(id) }[m]; };
   const fmt = v => (m === 'po' || m === 'inv') ? usd(v) : m === 'labor' ? num(v) + ' h' : m === 'findings' ? (v === 3 ? '!' : v === 2 ? '▲' : v === 1 ? 'i' : '–') : num(v);
-  return z.members.filter(id => m !== 'findings' || worst(id) > 0).map(id => ({ key: id, label: titleOf(id), v: val(id), vs: fmt(val(id)),
+  const cnt = id => { const p = P[id], k = p.k; return { alarms: mo == null ? k.alarms : p.ma[mo], alerts: k.alerts, wos: mo == null ? k.wos : p.mc[mo],
+    po: (p.flow['wo>po'] || {}).n || 0, inv: (p.flow['po>invoice'] || {}).n || 0, labor: laborN(id), findings: (findBy[id] || []).length }[m]; };
+  return z.members.filter(id => m !== 'findings' || worst(id) > 0).map(id => ({ key: id, label: titleOf(id), v: val(id), vs: fmt(val(id)), n: cnt(id),
       sub: m === 'findings' ? (findBy[id] || [])[0].title : m === 'wos' ? `${P[id].k.open} open` : m === 'alarms' ? `${P[id].k.crit} critical` : '',
       f: worst(id) === 3 ? sevFill('critical') : worst(id) === 2 ? sevFill('major') : 'var(--seq1)', kind: 'pos' }))
     .sort((a, c) => c.v - a.v);
@@ -669,13 +678,13 @@ function drill(id, m) {
   if (isZone(id)) return drillZone(id, m);
   const bd = (D.bd[m] || {})[id] || [], short = k => k.replace(P[id].cls + '_', '').replace(/_/g, ' ');
   switch (m) {
-    case 'alarms': return bd.map(([k, n, sev, orph]) => ({ key: k, label: short(k), v: n, vs: num(n), sub: sev + (orph ? ` · ${orph} no WO` : ''), f: sevFill(sev) }));
-    case 'alerts': return bd.map(([k, n, ack]) => ({ key: k, label: k, v: n, vs: num(n), sub: `${Math.round(ack * 100)}% ack'd`, f: 'var(--seq1)' }));
-    case 'wos': return bd.map(([k, n, open]) => ({ key: k, label: k, v: n, vs: num(n), sub: open ? `${open} open` : 'all closed', f: k.startsWith('CM P1') ? sevFill('critical') : k.startsWith('CM') ? 'var(--seq2)' : 'var(--seq1)' }));
-    case 'po': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, vs: usd(amt), sub: `${n} POs`, f: 'var(--seq1)' }));
-    case 'inv': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, vs: usd(amt), sub: `${n} invoices`, f: 'var(--seq2)' }));
-    case 'labor': return bd.map(([k, hrs, n]) => ({ key: k, label: k, v: hrs, vs: num(hrs) + ' h', sub: `${n} entries`, f: 'var(--seq1)' }));
-    case 'findings': return (findBy[id] || []).map(f => ({ key: f.title, label: f.title, v: 1, vs: f.sev === 'critical' ? '!' : f.sev === 'warning' ? '▲' : 'i', sub: f.sev, f: sevFill(f.sev === 'warning' ? 'major' : f.sev) }));
+    case 'alarms': return bd.map(([k, n, sev, orph]) => ({ key: k, label: short(k), v: n, n, vs: num(n), sub: sev + (orph ? ` · ${orph} no WO` : ''), f: sevFill(sev) }));
+    case 'alerts': return bd.map(([k, n, ack]) => ({ key: k, label: k, v: n, n, vs: num(n), sub: `${Math.round(ack * 100)}% ack'd`, f: 'var(--seq1)' }));
+    case 'wos': return bd.map(([k, n, open]) => ({ key: k, label: k, v: n, n, vs: num(n), sub: open ? `${open} open` : 'all closed', f: k.startsWith('CM P1') ? sevFill('critical') : k.startsWith('CM') ? 'var(--seq2)' : 'var(--seq1)' }));
+    case 'po': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, n, vs: usd(amt), sub: `${n} POs`, f: 'var(--seq1)' }));
+    case 'inv': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, n, vs: usd(amt), sub: `${n} invoices`, f: 'var(--seq2)' }));
+    case 'labor': return bd.map(([k, hrs, n]) => ({ key: k, label: k, v: hrs, n, vs: num(hrs) + ' h', sub: `${n} entries`, f: 'var(--seq1)' }));
+    case 'findings': return (findBy[id] || []).map(f => ({ key: f.title, label: f.title, v: 1, n: 1, vs: f.sev === 'critical' ? '!' : f.sev === 'warning' ? '▲' : 'i', sub: f.sev, f: sevFill(f.sev === 'warning' ? 'major' : f.sev) }));
   }
   return [];
 }
@@ -694,7 +703,7 @@ function openLevel2(b, parent) {
   if (navigator.vibrate) try { navigator.vibrate([10, 30, 10]); } catch (e) {}
   b.svg.classList.add('deep');
   const cx = W / 2, cy = H / 2 + 10, rC = base * 1.6;
-  const mx = Math.max(1, ...items.map(i => i.v));
+  const mx = Math.max(1, ...items.map(i => i.v)), mxN = Math.max(1, ...items.map(i => i.n ?? i.v));
   const rs = items.map(i => base * (1 + 0.9 * Math.sqrt(i.v / mx)));
   const maxR = Math.max(base, ...rs);
   const rx = Math.min(W / 2 - maxR - 6, 290), ry = Math.max(rC + maxR + 6, Math.min(rx * 1.7, H / 2 - maxR - 50));
@@ -706,7 +715,7 @@ function openLevel2(b, parent) {
     const r = rs[i], f1 = Math.round(Math.max(13, r * .38)), f2 = Math.max(10, Math.round(f1 * .7)), f3 = Math.max(9, Math.round(f1 * .6));
     const lines = wrap2(it.label, Math.max(8, Math.floor(r * 1.6 / (f2 * .55))));
     hits.push(it.kind === 'pos' ? { x, y, r, id: it.key, tab: MTAB[m], name: `${it.label} → ${MTITLE[m]}`, kind: 'pos', m } : { x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
-    h += `<line class="tether wt" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke-width:${(1.5 + 10 * it.v / mx).toFixed(1)}"/>`;
+    h += `<line class="tether wt" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke-width:${(1.5 + 10 * (it.n ?? it.v) / mxN).toFixed(1)}"/>`;
     h += satG(hits.length - 1, x, y, `<circle r="${r}" fill="${it.f}" stroke="var(--line)" stroke-width="1.2"/>
       <text y="${-f2 * (lines.length - 1) * .5 - 2}" text-anchor="middle" font-size="${f1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(it.vs)}</text>
       ${lines.map((l, j) => `<text y="${f2 + 1 + j * (f2 + 1) - f2 * (lines.length - 1) * .5}" text-anchor="middle" font-size="${f2}" fill="var(--ink)">${esc(l)}</text>`).join('')}
@@ -732,6 +741,29 @@ function openLevel2(b, parent) {
   b.hits = hits;
   b.svg.querySelector('.hint').textContent = HINT2;
 }
+/* ---------- records: decode compact rows (ts = minutes since 2024-12-01, strings indexed into D.sd) ---------- */
+const RT0 = Date.UTC(2024, 11, 1), RSTR = { alarms: [1, 2, 3], alerts: [1], wos: [1, 3, 4], po: [1, 4], inv: [1], labor: [1, 3] }, RDATE = { po: 1, inv: 1, labor: 1 };
+const RC = {};
+function recs(m, id) {
+  const key = m + '|' + id; if (RC[key]) return RC[key];
+  const raw = ((D.rec || {})[m] || {})[id] || [], sc = RSTR[m] || [];
+  return RC[key] = raw.map(r => r.map((v, i) => i === 0 ? new Date(RT0 + v * 6e4).toISOString().slice(0, RDATE[m] ? 10 : 16).replace('T', ' ') : sc.includes(i) && v != null ? D.sd[v] : v));
+}
+const laborN = id => ((D.bd.labor || {})[id] || []).reduce((a, r) => a + r[2], 0);
+const PAGE = 25;
+// render the first page; the "load more" button appends the next 25 until the end
+function pagedList(m, rows, hitKey) {
+  const first = rows.slice(0, PAGE).map(r => recRow(m, r, hitKey && r[1] === hitKey)).join('');
+  return `<ul class="tl paged">${first}</ul>${rows.length > PAGE ? moreBtn(PAGE, rows.length) : `<div class="endnote">All ${rows.length} shown</div>`}`;
+}
+const moreBtn = (shown, total) => `<button type="button" class="more" data-more>Load ${Math.min(PAGE, total - shown)} more · ${shown} of ${total} shown</button>`;
+function loadMore(container, m, rows, hitKey) {
+  const ul = container.querySelector('ul.paged'), btn = container.querySelector('[data-more]');
+  const shown = ul.children.length, next = rows.slice(shown, shown + PAGE);
+  ul.insertAdjacentHTML('beforeend', next.map(r => recRow(m, r, hitKey && r[1] === hitKey)).join(''));
+  const now = shown + next.length;
+  btn.outerHTML = now < rows.length ? moreBtn(now, rows.length) : `<div class="endnote">All ${rows.length} shown</div>`;
+}
 function openPeek(b, t) {
   const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
   let body = '', sub = '';
@@ -741,12 +773,14 @@ function openPeek(b, t) {
     body = list.map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('');
     sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
   } else {
-    const recs = (D.rec[m] || {})[id] || [], hit = item ? recs.filter(r => r[1] === item) : recs, rows = hit.length ? hit : recs;
-    body = `<ul class="tl">${rows.slice(0, 10).map(r => recRow(m, r, false)).join('')}</ul>`;
-    sub = item && !hit.length ? `none of the latest ${recs.length} match · showing all` : `latest ${Math.min(10, rows.length)} of ${titleOf(id)}`;
+    const all = recs(m, id), hit = item ? all.filter(r => r[1] === item) : all, rows = hit.length ? hit : all;
+    body = pagedList(m, rows, null);
+    sub = `${rows.length} record${rows.length === 1 ? '' : 's'} · ${titleOf(id)} · newest first`;
+    b.__pg = { m, rows };
   }
   const el = document.createElement('div');
   el.className = 'peek'; el.dataset.pid = id;
+  el.addEventListener('click', e => { if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
     <div class="pk-f">Lift your finger to keep this open</div>`;
@@ -866,15 +900,15 @@ function renderSub() {
         <span class="bl">${esc(i.label)}<small>${esc(i.sub)}</small></span>
         <span class="bt"><span style="width:${Math.max(2, 100 * i.v / mx)}%;background:${i.f}"></span></span>
         <span class="bv mono">${esc(i.vs)}</span></button>`).join('') || '<div class="note">Nothing recorded.</div>'}</div>`;
-    const recs = (D.rec[m] || {})[id] || [], hitRows = item ? recs.filter(r => r[1] === item) : recs;
-    const showRows = hitRows.length ? hitRows : recs;
-    h += `<div class="sect" style="margin-top:6px">Latest records${item ? ` · ${esc(item)}` : ''}</div>`;
-    if (item && !hitRows.length) h += `<div class="note">None of the latest ${recs.length} records are ${esc(item)}; showing all.</div>`;
-    h += `<ul class="tl">${showRows.map(r => recRow(m, r, item && r[1] === item)).join('')}</ul>`;
+    const all = recs(m, id), hitRows = item ? all.filter(r => r[1] === item) : all;
+    const showRows = hitRows.length ? hitRows : all;
+    SW.rows = showRows;
+    h += `<div class="sect" style="margin-top:6px">Records${item ? ` · ${esc(item)}` : ''} · ${showRows.length} · newest first</div>`;
+    h += pagedList(m, showRows, item);
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swBody').addEventListener('click', e => { if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
