@@ -124,6 +124,15 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .peek { position: fixed; left: 10px; right: 10px; bottom: 10px; max-height: 58%; display: flex; flex-direction: column; background: var(--sheet); border: 1px solid var(--line-soft); border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.35); transform: translateY(16px) scale(.97); opacity: 0; transition: transform .18s ease, opacity .18s ease; pointer-events: none; }
 @media (min-width: 900px) { .peek { left: 50%; right: auto; width: 520px; margin-left: -260px; bottom: 24px; } }
 .peek.on { transform: none; opacity: 1; }
+.peek.live { pointer-events: auto; touch-action: pan-y; border-color: var(--accent); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.peek.live .pk-b { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.peek.live li[data-ent] { cursor: pointer; }
+.peek.live .pk-f { background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); border-radius: 0 0 14px 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pk-ring { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; }
+.closering { position: fixed; z-index: 60; width: 80px; height: 80px; margin: -40px 0 0 -40px; pointer-events: none; }
+.closering .bg { fill: color-mix(in srgb, var(--sheet) 85%, transparent); stroke: var(--line-soft); stroke-width: 5; }
+.closering .fg { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; transform: rotate(-90deg); }
+.closering text { font: 700 22px var(--font-ui); fill: var(--accent); }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
 .peek .pk-b { overflow: hidden; padding: 4px 14px; }
@@ -254,7 +263,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v5.2 · synthetic data · tap a unit for details · hold a unit or room to burst · hold a last-level bubble to peek its records · tap any record to follow its lifecycle</div>
+      <div class="sub">v5.3 · synthetic data · tap a unit for details · hold a unit or room to burst · hold a last-level bubble to peek records, press and hold the list to close · tap any record to follow its lifecycle</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -725,16 +734,48 @@ function openPeek(b, t) {
     sub = item && !hit.length ? `none of the latest ${recs.length} match · showing all` : `latest ${Math.min(10, rows.length)} of ${titleOf(id)}`;
   }
   const el = document.createElement('div');
-  el.className = 'peek';
+  el.className = 'peek'; el.dataset.pid = id;
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
-    <div class="pk-f">Lift your finger to return to the bubbles</div>`;
+    <div class="pk-f">Lift your finger to keep this open</div>`;
   b.g.appendChild(el);
   requestAnimationFrame(() => el.classList.add('on'));
   b.peekEl = el;
   b.svg.querySelector('.hint').textContent = 'Peeking · lift your finger to go back';
   if (navigator.vibrate) try { navigator.vibrate([8, 20, 8]); } catch (e) {}
 }
+const CLOSE_MS = 650;
+function livePeek(b) {
+  const el = b.peekEl; if (!el) return;
+  el.classList.add('live');
+  el.querySelector('.pk-f').innerHTML = '<span class="pk-ring"></span>Press and hold to close · tap a record to follow it';
+  b.svg.querySelector('.hint').textContent = 'Tap a record · press and hold to close the list';
+}
+// press-and-hold closes the list (countdown ring under the finger); a quick tap on a record opens its lifecycle
+let ph = null;
+function peekDown(b, e) {
+  const ring = document.createElement('div');
+  ring.className = 'closering';
+  ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
+  const r = 30, c = 2 * Math.PI * r;
+  ring.innerHTML = `<svg width="80" height="80" viewBox="-40 -40 80 80" aria-hidden="true"><circle r="${r}" class="bg"/><circle r="${r}" class="fg" style="stroke-dasharray:${c};stroke-dashoffset:${c}"/><text y="7" text-anchor="middle">×</text></svg>`;
+  document.body.appendChild(ring);
+  const fg = ring.querySelector('.fg');
+  fg.getBoundingClientRect();
+  fg.style.transition = `stroke-dashoffset ${CLOSE_MS}ms linear`; fg.style.strokeDashoffset = 0;
+  ph = { b, x: e.clientX, y: e.clientY, ring, row: e.target.closest('li[data-ent]'),
+    timer: setTimeout(() => { const p0 = ph; ph = null; p0.ring.remove(); closePeek(b); pinBurst(b);
+      b.svg.querySelector('.hint').textContent = 'Tap a circle · hold to peek · ‹ Back for previous level · tap outside to close';
+      if (navigator.vibrate) try { navigator.vibrate([10, 30, 10]); } catch (err) {} }, CLOSE_MS) };
+}
+function peekEnd(tap) {
+  if (!ph) return;
+  const p0 = ph; ph = null; clearTimeout(p0.timer); p0.ring.remove();
+  if (tap && p0.row && p0.b.peekEl) openLC(p0.b.peekEl.dataset.pid, p0.row.dataset.ent);
+}
+window.addEventListener('pointermove', e => { if (ph && Math.hypot(e.clientX - ph.x, e.clientY - ph.y) > 10) peekEnd(false); });
+window.addEventListener('pointerup', () => peekEnd(true));
+window.addEventListener('pointercancel', () => peekEnd(false));
 function closePeek(b) {
   const el = b.peekEl; b.peekEl = null;
   el.classList.remove('on'); setTimeout(() => el.remove(), 180);
@@ -759,6 +800,7 @@ function pinBurst(b) {
   b.pinned = true;
   b.g.style.pointerEvents = 'auto';
   b.g.addEventListener('pointerdown', e => {
+    if (b.peekEl) return peekDown(b, e);
     hold = { id: b.id, node: null, open: b, x: e.clientX, y: e.clientY, pinned: true };
     b.curI = undefined; hoverBurst(b, e);
   });
@@ -840,7 +882,7 @@ const endHold = (e, cancelled) => {
   if (h.open) {
     const b = h.open, target = !cancelled && b.cur;
     clearTimeout(b.dwell);
-    if (b.peekEl) { closePeek(b); pinBurst(b); return; }
+    if (b.peekEl) { pinBurst(b); livePeek(b); return; }
     if (target && target.kind === 'back') { if (b.level === 2) levelUp(b); pinBurst(b); return; }
     if (cancelled && b.pinned) return;
     closeBurst(b.g);
@@ -1217,7 +1259,7 @@ function openLC(pid, ent) {
       <span class="lct">${esc(x.title)}${x.amt != null ? ` · <span class="mono">${usd(x.amt)}</span>` : ''}</span>
       ${x.d ? `<span class="lcx">${esc(x.d)}</span>` : ''}${x.t ? `<span class="lcw mono">${when}</span>` : ''}</span></li>`;
   }).join('');
-  $('lcBack').textContent = !$('subwin').hidden ? '‹ Back to records' : '‹ Back to details';
+  $('lcBack').textContent = !$('subwin').hidden || document.querySelector('.peek.live') ? '‹ Back to records' : '‹ Back to details';
   $('lcTitle').textContent = `${titleOf(pid)} · lifecycle`;
   $('lcCrumb').textContent = `${pid} · ${c.a ? c.a[0] + ' → ' : ''}${c.w ? c.w[0] : 'no work order'}`;
   $('lcBody').innerHTML = `<div class="lck">${kpis.map(([l, v, s]) => `<div class="stat"><b>${v}</b><span>${l} ${s}</span></div>`).join('')}</div>

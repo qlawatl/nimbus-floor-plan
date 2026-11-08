@@ -2,6 +2,10 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v5.3 — 2026-11-08 · branch `release/v5.3`
+- **The records list stays open after you lift your finger.** It becomes scrollable, and tapping a record opens its lifecycle (‹ Back returns you to the list).
+- **Press and hold anywhere on the list to close it.** A countdown ring fills under your finger (0.65 s); when it completes, the list closes and you're back on the same bubbles. Lifting early or scrolling cancels.
+
 ## v5.2 — 2026-11-08 · branch `release/v5.2`
 - **Peek records on the last level.** In a drill-down, hold a bubble (the ring fills in under half a second) and that item's latest records pop up in a list. Lift your finger to close it and return to the same bubbles, which stay on screen so you can peek another one. A quick release still opens the full records window.
 - Alarm severity tags in record lists show the real severity: critical, major or minor.
