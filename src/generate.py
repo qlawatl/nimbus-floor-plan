@@ -175,6 +175,69 @@ for r in leaf.itertuples():
     else:
         installs.append(dict(asset_id=a1, position_id=r.position_id, installed_from=first, installed_to=None, removal_reason=None))
         install_lookup[r.position_id] = [(first, pd.Timestamp.max, a1)]
+
+# ---------------------------------------------------------------- storerooms + asset lineage (separate RNG keeps the rest of the dataset unchanged)
+rng2 = np.random.default_rng(SEED + 7)
+WH = "WH-CENTRAL"                                # offsite central warehouse
+SR = {s: f"{s}-SR" for s in SITES}                # one storeroom per site
+moves = []                                       # asset_id, ts, event, from_loc, to_loc, ref, note
+def rbin(): return f"{'ABCD'[rng2.integers(4)]}-{int(rng2.integers(1, 9)):02d}-{int(rng2.integers(1, 5))}"
+def mv(aid, ts, ev, frm, to, ref=None, note=None): moves.append(dict(asset_id=aid, ts=ts, event=ev, from_loc=frm, to_loc=to, ref=ref, note=note))
+cls_a = {a["asset_id"]: a["asset_class"] for a in assets}
+mfr_a = {a["asset_id"]: a["manufacturer"] for a in assets}
+def receive(aid, site, install_ts):
+    rcv = install_ts - pd.Timedelta(days=float(rng2.uniform(30, 75)))
+    po = f"CAP-{int(rng2.integers(70000, 79999))}"
+    mv(aid, rcv, "received", f"VENDOR:{mfr_a[aid]}", WH, po, "New unit received against capital PO")
+    b = rbin()
+    mv(aid, rcv + pd.Timedelta(days=float(rng2.uniform(4, 15))), "transferred", WH, f"{SR[site]}:{b}", None, f"Stocked in bin {b}")
+    return b
+# initial installs
+for pid, rows in install_lookup.items():
+    a1 = rows[0][2]; b0 = receive(a1, pid[:2], rows[0][0])
+    mv(a1, rows[0][0], "installed", f"{SR[pid[:2]]}:{b0}", pid, "Commissioning", "Issued and commissioned")
+# swaps in date order: the removed unit is repaired and returns as a spare; later swaps reuse a refurbished spare when one is ready
+pool = []
+for pid, sw in sorted(SWAPS.items(), key=lambda x: x[1]):
+    site, cls = pid[:2], pid.split("-")[2]
+    old, new = install_lookup[pid][0][2], install_lookup[pid][1][2]
+    ready = [s for s in pool if s["cls"] == cls and s["site"] == site and s["avail"] < sw - pd.Timedelta(days=1)]
+    if ready:
+        use = ready[0]; pool.remove(use)
+        install_lookup[pid][1] = (sw, pd.Timestamp.max, use["aid"])
+        for row in installs:
+            if row["asset_id"] == new and row["position_id"] == pid: row["asset_id"] = use["aid"]
+        mv(use["aid"], sw, "installed", f"{SR[site]}:{use['bin']}", pid, f"SWAP:{pid}", "Refurbished spare issued and installed")
+        b = receive(new, site, sw + pd.Timedelta(days=float(rng2.uniform(20, 60))))   # the unused new unit arrives later as stock
+    else:
+        b = receive(new, site, sw)
+        mv(new, sw, "installed", f"{SR[site]}:{b}", pid, f"SWAP:{pid}", "Issued from storeroom and installed")
+    mv(old, sw, "removed", pid, f"{SR[site]}:QUARANTINE", f"SWAP:{pid}", "Removed - degraded")
+    vendor = CLASSES[cls]["vendors"][0]
+    t_out = sw + pd.Timedelta(days=float(rng2.uniform(2, 7)))
+    mv(old, t_out, "sent_for_repair", f"{SR[site]}:QUARANTINE", f"DEPOT:{vendor}", f"RMA-{int(rng2.integers(1000, 9999))}", "Shipped to repair depot")
+    t_back = t_out + pd.Timedelta(days=float(rng2.uniform(22, 40)))
+    if t_back < END:
+        b = rbin()
+        mv(old, t_back, "returned", f"DEPOT:{vendor}", f"{SR[site]}:{b}", None, f"Refurbished, stocked in bin {b}")
+        pool.append(dict(aid=old, cls=cls, site=site, avail=t_back, bin=b))
+# extra spares held in each storeroom; one moved between sites
+spare_ids = []
+for site, classes in {"E1": ["UPS", "PUMP", "CH"], "W1": ["CRAH", "UPS", "GEN"]}.items():
+    for cls in classes:
+        asset_seq[0] += 1
+        aid = f"A{asset_seq[0]}"
+        mfr, model = CLASSES[cls]["mfr"][int(rng2.integers(len(CLASSES[cls]["mfr"])))]
+        when = START + pd.Timedelta(days=float(rng2.uniform(60, DAYS - 40)))
+        assets.append(dict(asset_id=aid, asset_tag=f"TAG-{cls}-{asset_seq[0]}", asset_class=cls, manufacturer=mfr, model=model,
+                           serial=f"SN{int(rng2.integers(10**7, 10**8))}", commissioned=None))
+        cls_a[aid] = cls; mfr_a[aid] = mfr
+        receive(aid, site, when + pd.Timedelta(days=45)); spare_ids.append((aid, site))
+aid, _ = spare_ids[4]   # a W1 UPS spare loaned to E1
+t = pd.Timestamp("2026-07-14 09:30")
+last_bin = [m for m in moves if m["asset_id"] == aid][-1]["to_loc"]
+nb = rbin()
+mv(aid, t, "transferred", last_bin, f"{SR['E1']}:{nb}", f"TO-{int(rng2.integers(1000, 9999))}", "Inter-site transfer to cover E1 UPS spares")
 assets_df = pd.DataFrame(assets)
 tag_of = dict(zip(assets_df.asset_id, assets_df.asset_tag))
 
@@ -282,8 +345,11 @@ for r in leaf.itertuples():
 # injected one-offs
 wo_ch_fail = make_wo("CM", "E1-B1-CH-02", pd.Timestamp("2026-09-22 05:40"), "Chiller compressor catastrophic failure - replace compressor assembly", "P1", close_after_h=24 * 16)
 wo_gen_rent = make_wo("CM", "W1-B1-GEN-02", pd.Timestamp("2026-02-03 11:15"), "Generator crankshaft failure - emergency rental generator and engine rebuild", "P1", close_after_h=24 * 25)
+swap_wo = {}
 for pid, sw in SWAPS.items():
-    make_wo("CM", pid, sw - pd.Timedelta(hours=4), f"Replace {pid.split('-')[2]} unit - asset replacement", "P2", close_after_h=8)
+    swap_wo[pid] = make_wo("CM", pid, sw - pd.Timedelta(hours=4), f"Replace {pid.split('-')[2]} unit - asset replacement", "P2", close_after_h=8)
+for m in moves:
+    if m["ref"] and m["ref"].startswith("SWAP:"): m["ref"] = swap_wo[m["ref"][5:]]
 
 wo_df = pd.DataFrame(work_orders).sort_values("opened_ts").reset_index(drop=True)
 
@@ -389,6 +455,8 @@ def to_parquet(df, path):
 raw = {
     "positions": pos_df, "position_feeds": pd.DataFrame(feeds, columns=["from_position_id", "to_position_id"]).assign(rel="feeds"),
     "assets": assets_df, "position_install": pd.DataFrame(installs), "vendors": vendors_df,
+    "asset_moves": pd.DataFrame(moves).sort_values(["asset_id", "ts"]).reset_index(drop=True),
+    "storerooms": pd.DataFrame([dict(storeroom_id=SR[s], site=s, name=f"{SITES[s][0]} Storeroom") for s in SITES] + [dict(storeroom_id=WH, site=None, name="Nimbus Central Warehouse")]),
     "cmms_work_orders": wo_df, "cmms_activities": acts_df, "erp_purchase_orders": po_df, "erp_invoices": inv_df,
     "bms_alarms": pd.DataFrame(bms_alarms), "notify_alerts": pd.DataFrame(alerts),
 }

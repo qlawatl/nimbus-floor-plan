@@ -2,6 +2,15 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v7 — 2026-11-08 · branch `release/v7`
+- **Site map.** Tap "‹ Zoom out: site map" above the drawing to see both buildings on the campus (live miniatures with the same coloring), the site storeroom with its bin grid and quarantine area, the receiving dock, and the offsite band: vendor, central warehouse, repair depot and the other site's storeroom. Tap a building to zoom back into it.
+- **Lineage button on every asset** (in the hold-for-details window, in the panel's Overview, and on storeroom rows). It zooms out to the site map and draws the asset's path in numbered steps: vendor → central warehouse → storeroom bin → installed position → quarantine → repair depot → back to the storeroom → reinstalled. Steps from the last 6 months are solid blue and older steps are dashed. "NOW" pulses on the current location and "6 MO AGO" marks where the asset was on 2026-04-30. The lineage window has Now, 6 months ago, moves in the last 6 months, and the full history; tap a step to find it on the map, double-tap to close.
+- **Storeroom stock.** Tap the storeroom on the site map to see the units on hand (new stock, refurbished spares, quarantine), each with a Lineage button.
+- **Data:** the generator adds `asset_moves` and `storerooms`, using a separate random seed so every existing record and finding stays the same. Removed units go to quarantine, then the repair depot, then come back to the storeroom as refurbished spares, and later swaps reuse them. Stories to try:
+  - `TAG-CRAH-100040`: CRAH-12 → depot → storeroom bin B-03-3 (where it was 6 months ago) → installed at E1-B1 CRAH-07 on 2026-06-03.
+  - `TAG-CRAH-100033`: CRAH-07 → depot → storeroom → E1-B1 CRAH-08 on 2026-08-17.
+  - A W1 UPS spare transferred to the E1 storeroom on 2026-07-14.
+
 ## v6.4 — 2026-11-08 · branch `release/v6.4`
 **The page is 3.2 MB → 0.8 MB, about 4× smaller.**
 - Data ships gzip-compressed and base64-encoded inside the page. The browser unpacks it on load with `DecompressionStream` (iOS 16.4+ / any current browser). The page is still one file and still works offline.
