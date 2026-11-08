@@ -332,7 +332,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v7.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v7.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -1540,7 +1540,8 @@ function showNav() {
   gestures(b.g, {
     hitAt: hitAtBurst,
     tap: t => {
-      if (!CUR || CUR.peekEl) return;
+      if (!CUR) return;
+      if (CUR.peekEl) return closeDetails();   // details list open: Back circle or any tap outside the list returns to the bubbles
       if (!t) return toast('Tap a circle · double-tap to go back');
       if (t.kind === 'back') return navBack();
       if (t.kind === 'sub' && CUR.level === 1) return navPush({ id: t.id, m: t.m });
