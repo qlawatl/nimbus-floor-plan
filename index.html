@@ -121,6 +121,15 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .brow .bt { height: 10px; background: var(--hair); border-radius: 5px; overflow: hidden; }
 .brow .bt span { display: block; height: 100%; border-radius: 5px; border: 1px solid var(--line-soft); }
 .brow .bv { font-size: 13px; font-weight: 600; }
+.peek { position: fixed; left: 10px; right: 10px; bottom: 10px; max-height: 58%; display: flex; flex-direction: column; background: var(--sheet); border: 1px solid var(--line-soft); border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.35); transform: translateY(16px) scale(.97); opacity: 0; transition: transform .18s ease, opacity .18s ease; pointer-events: none; }
+@media (min-width: 900px) { .peek { left: 50%; right: auto; width: 520px; margin-left: -260px; bottom: 24px; } }
+.peek.on { transform: none; opacity: 1; }
+.peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
+.peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
+.peek .pk-b { overflow: hidden; padding: 4px 14px; }
+.peek .pk-f { padding: 8px 14px; border-top: 1px solid var(--hair); font-size: 12px; font-weight: 600; color: var(--accent); text-align: center; }
+.peek .tl li.lc .amt::after { content: none; }
+@media (prefers-reduced-motion: reduce) { .peek { transition: none; } }
 .backbtn { border: 0; background: none; color: var(--accent); font: 600 14px var(--font-ui); padding: 0 0 4px; cursor: pointer; display: block; }
 .burst .back text { font-family: var(--font-ui); }
 .tl li.lc { cursor: pointer; } .tl li.lc:hover { background: var(--paper); }
@@ -245,7 +254,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v5.1 · synthetic data · tap a unit for details · hold a unit or room to burst · ‹ Back steps up one level · tap any record to follow its lifecycle</div>
+      <div class="sub">v5.2 · synthetic data · tap a unit for details · hold a unit or room to burst · hold a last-level bubble to peek its records · tap any record to follow its lifecycle</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -588,6 +597,7 @@ function dwellRing(s, r0, ms) {
   ring.style.transition = `stroke-dashoffset ${ms}ms linear`; ring.style.strokeDashoffset = 0;
 }
 function hoverBurst(b, e) {
+  if (b.peekEl) return;
   let best = null, bd = Infinity;
   b.hits.forEach((h, i) => { const d = Math.hypot(e.clientX - h.x, e.clientY - h.y); if (d <= h.r + 8 && d < bd) { bd = d; best = i; } });
   if (best === b.curI) return;
@@ -598,7 +608,7 @@ function hoverBurst(b, e) {
   layer.querySelectorAll('.sat').forEach(s => s.classList.toggle('hot', +s.dataset.i === best));
   const hint = b.svg.querySelector('.hint');
   if (!b.cur) hint.textContent = b.level === 1 ? HINT1 : 'Slide onto a circle · release to open its records';
-  else if (b.cur.kind === 'pos') hint.textContent = 'Release: ' + b.cur.name;
+  else if (b.cur.kind === 'pos' && b.level === 1) hint.textContent = 'Release: ' + b.cur.name;
   else if (b.cur.kind === 'back') {
     hint.textContent = 'Hold or release here to go back a level';
     const target = b.cur;
@@ -609,7 +619,12 @@ function hoverBurst(b, e) {
     dwellRing(layer.querySelector(`.sat[data-i="${best}"]`), b.cur.r, DWELL_MS);
     const target = b.cur;
     b.dwell = setTimeout(() => { if (b.cur === target && b.level === 1) openLevel2(b, target); }, DWELL_MS);
-  } else hint.textContent = 'Release to open: ' + b.cur.name;
+  } else {
+    hint.textContent = `Hold to peek at ${b.cur.name} records · quick release opens them`;
+    dwellRing(layer.querySelector(`.sat[data-i="${best}"]`), b.cur.r, DWELL_MS);
+    const target = b.cur;
+    b.dwell = setTimeout(() => { if (b.cur === target && b.level === 2 && !b.peekEl) openPeek(b, target); }, DWELL_MS);
+  }
   if (b.cur && navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
 }
 
@@ -669,7 +684,7 @@ function openLevel2(b, parent) {
     const a = -Math.PI / 2 + i * 2 * Math.PI / Math.max(items.length, 1), x = cx + Math.cos(a) * (items.length === 1 ? 0 : rx), y = cy + Math.sin(a) * (items.length === 1 ? ry : ry);
     const r = rs[i], f1 = Math.round(Math.max(13, r * .38)), f2 = Math.max(10, Math.round(f1 * .7)), f3 = Math.max(9, Math.round(f1 * .6));
     const lines = wrap2(it.label, Math.max(8, Math.floor(r * 1.6 / (f2 * .55))));
-    hits.push(it.kind === 'pos' ? { x, y, r, id: it.key, tab: MTAB[m], name: `${it.label} → ${MTITLE[m]}`, kind: 'pos' } : { x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
+    hits.push(it.kind === 'pos' ? { x, y, r, id: it.key, tab: MTAB[m], name: `${it.label} → ${MTITLE[m]}`, kind: 'pos', m } : { x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
     h += `<line class="tether" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
     h += satG(hits.length - 1, x, y, `<circle r="${r}" fill="${it.f}" stroke="var(--line)" stroke-width="1.2"/>
       <text y="${-f2 * (lines.length - 1) * .5 - 2}" text-anchor="middle" font-size="${f1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(it.vs)}</text>
@@ -696,7 +711,38 @@ function openLevel2(b, parent) {
   b.hits = hits;
   b.svg.querySelector('.hint').textContent = HINT2;
 }
-const HINT2 = 'Slide onto a circle · release to open · ‹ Back for previous level';
+function openPeek(b, t) {
+  const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
+  let body = '', sub = '';
+  if (m === 'findings') {
+    const fs = isZone(id) ? ZONES[id].findings : (findBy[id] || []);
+    const list = item ? fs.filter(f => f.title === item) : fs;
+    body = list.map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('');
+    sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
+  } else {
+    const recs = (D.rec[m] || {})[id] || [], hit = item ? recs.filter(r => r[1] === item) : recs, rows = hit.length ? hit : recs;
+    body = `<ul class="tl">${rows.slice(0, 10).map(r => recRow(m, r, false)).join('')}</ul>`;
+    sub = item && !hit.length ? `none of the latest ${recs.length} match · showing all` : `latest ${Math.min(10, rows.length)} of ${titleOf(id)}`;
+  }
+  const el = document.createElement('div');
+  el.className = 'peek';
+  el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
+    <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
+    <div class="pk-f">Lift your finger to return to the bubbles</div>`;
+  b.g.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('on'));
+  b.peekEl = el;
+  b.svg.querySelector('.hint').textContent = 'Peeking · lift your finger to go back';
+  if (navigator.vibrate) try { navigator.vibrate([8, 20, 8]); } catch (e) {}
+}
+function closePeek(b) {
+  const el = b.peekEl; b.peekEl = null;
+  el.classList.remove('on'); setTimeout(() => el.remove(), 180);
+  b.svg.querySelectorAll('.dwell').forEach(x => x.remove());
+  b.curI = undefined; b.cur = null;
+  b.svg.querySelectorAll('.sat.hot').forEach(s => s.classList.remove('hot'));
+}
+const HINT2 = 'Slide onto a circle · hold to peek records · release to open · ‹ Back';
 function levelUp(b) {
   const l2 = b.svg.querySelector('.l2');
   l2.innerHTML = ''; delete l2.dataset.on;
@@ -734,7 +780,7 @@ function recRow(m, r, hit) {
   const ent = m === 'alarms' ? `A|${r[0]}|${r[1]}` : m === 'labor' ? r[4] : r[2];
   const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
-    case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> ${sevtag(sev === 'major' ? 'warning' : sev === 'critical' ? 'critical' : 'info').replace(/warning|info/, sev)}<div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
+    case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> <span class="sevtag ${sev === 'critical' ? 'critical' : sev === 'major' ? 'warning' : 'info'}">${sev === 'critical' ? '! ' : sev === 'major' ? '▲ ' : ''}${esc(sev)}</span><div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
     case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
     case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(wid)}</b> <span class="chip">${esc(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
     case 'po': { const [ts, k, pid, amt, d] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(pid)}</b> · ${esc(k)}<div>${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
@@ -794,6 +840,7 @@ const endHold = (e, cancelled) => {
   if (h.open) {
     const b = h.open, target = !cancelled && b.cur;
     clearTimeout(b.dwell);
+    if (b.peekEl) { closePeek(b); pinBurst(b); return; }
     if (target && target.kind === 'back') { if (b.level === 2) levelUp(b); pinBurst(b); return; }
     if (cancelled && b.pinned) return;
     closeBurst(b.g);

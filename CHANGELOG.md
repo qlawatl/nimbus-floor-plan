@@ -2,6 +2,10 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v5.2 — 2026-11-08 · branch `release/v5.2`
+- **Peek records on the last level.** In a drill-down, hold a bubble (the ring fills in under half a second) and that item's latest records pop up in a list. Lift your finger to close it and return to the same bubbles, which stay on screen so you can peek another one. A quick release still opens the full records window.
+- Alarm severity tags in record lists show the real severity: critical, major or minor.
+
 ## v5.1 — 2026-11-08 · commit `31895fe`
 - **Back navigation, one level at a time.**
   - In a drill-down, hold on the ‹ Back circle to return to level 1 with your finger still down.
