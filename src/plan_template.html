@@ -277,7 +277,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v6.3 · synthetic data · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v6.4 · synthetic data · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -342,7 +342,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <div class="pb" id="swBody"></div>
   <div class="foot"><span class="dthint">Double-tap to close</span><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
 </section>
-<script type="application/json" id="data">/*__DATA__*/</script>
+<script type="application/octet-stream" id="dataz">/*__DATAZ__*/</script>
 <script>
 /*
   Nimbus Site Floor Plan. Single-file app, no libraries. Data is injected at build time (build.py).
@@ -352,8 +352,17 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
     lifecycle view · search · render loop
   Versions and what changed in each: CHANGELOG.md (lists the commit for each release).
 */
-(() => {
-const D = JSON.parse(document.getElementById('data').textContent);
+// data ships gzip-compressed + base64 (≈5x smaller); the browser unpacks it on load
+async function loadData() {
+  const raw = document.getElementById('dataz').textContent.trim();
+  const bin = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+  const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+(async () => {
+let D;
+try { D = await loadData(); }
+catch (err) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:16px;font:15px system-ui">This browser can\'t unpack the data. Update to iOS 16.4+ / a current browser.</p>'); return; }
 const P = D.positions, M = D.months;
 const BLD = ['E1-B1', 'E1-B2', 'W1-B1', 'W1-B2'];
 const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection' };
@@ -742,12 +751,21 @@ function openLevel2(b, parent) {
   b.svg.querySelector('.hint').textContent = HINT2;
 }
 /* ---------- records: decode compact rows (ts = minutes since 2024-12-01, strings indexed into D.sd) ---------- */
-const RT0 = Date.UTC(2024, 11, 1), RSTR = { alarms: [1, 2, 3], alerts: [1], wos: [1, 3, 4], po: [1, 4], inv: [1], labor: [1, 3] }, RDATE = { po: 1, inv: 1, labor: 1 };
+const RT0 = Date.UTC(2024, 11, 1), RSTR = { alarms: [1, 2, 3], alerts: [1], wos: [1, 3, 4], po: [1, 4], inv: [1], labor: [1, 3] };
+// time columns stored as minutes after the row's own ts; id columns stored as numbers
+const RTIME = { alarms: [6], wos: [5, 6] };
+const PFX = { WO: n => 'WO-' + n, PO: n => 'PO-' + n, ALM: n => 'ALM-' + String(n).padStart(7, '0'), ALR: n => 'ALR-' + String(n).padStart(6, '0'), INV: n => 'INV-' + String(n).padStart(7, '0') };
+const RIDS = { alarms: { 4: 'WO', 5: 'ALM' }, alerts: { 2: 'ALR', 3: 'ALM' }, wos: { 2: 'WO' }, po: { 2: 'PO', 5: 'WO' }, inv: { 2: 'INV', 4: 'PO' }, labor: { 4: 'WO' } };
+const tstr = mins => new Date(RT0 + mins * 6e4).toISOString().slice(0, 16).replace('T', ' ');
 const RC = {};
 function recs(m, id) {
   const key = m + '|' + id; if (RC[key]) return RC[key];
-  const raw = ((D.rec || {})[m] || {})[id] || [], sc = RSTR[m] || [];
-  return RC[key] = raw.map(r => r.map((v, i) => i === 0 ? new Date(RT0 + v * 6e4).toISOString().slice(0, RDATE[m] ? 10 : 16).replace('T', ' ') : sc.includes(i) && v != null ? D.sd[v] : v));
+  const raw = ((D.rec || {})[m] || {})[id] || [], sc = RSTR[m] || [], tc = RTIME[m] || [], ic = RIDS[m] || {};
+  let t = null;
+  return RC[key] = raw.map(r => {
+    t = t == null ? r[0] : t - r[0];   // first row absolute, then minutes back from the previous row
+    return r.map((v, i) => i === 0 ? tstr(t) : v == null ? null : tc.includes(i) ? tstr(t + v) : ic[i] ? PFX[ic[i]](v) : sc.includes(i) ? D.sd[v] : v);
+  });
 }
 const laborN = id => ((D.bd.labor || {})[id] || []).reduce((a, r) => a + r[2], 0);
 const PAGE = 25;
@@ -865,15 +883,15 @@ function openSub(id, m, item, from) {
 }
 function closeSub() { $('subwin').classList.remove('open'); $('subwin').hidden = true; $('subscrim').hidden = true; }
 function recRow(m, r, hit) {
-  const ent = m === 'alarms' ? `A|${r[0]}|${r[1]}` : m === 'labor' ? r[4] : r[2];
+  const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
   const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
     case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> <span class="sevtag ${sev === 'critical' ? 'critical' : sev === 'major' ? 'warning' : 'info'}">${sev === 'critical' ? '! ' : sev === 'major' ? '▲ ' : ''}${esc(sev)}</span><div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
     case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
     case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(wid)}</b> <span class="chip">${esc(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
-    case 'po': { const [ts, k, pid, amt, d] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(pid)}</b> · ${esc(k)}<div>${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
-    case 'inv': { const [ts, k, iid, amt, po] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(iid)}</b> · ${esc(k)}<div>against ${esc(po)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
-    case 'labor': { const [ts, k, hrs, d, wid] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(k)}</b> · ${esc(wid)}<div>${esc(d)}</div></span><span class="amt">${hrs} h</span></li>`; }
+    case 'po': { const [ts, k, pid, amt, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(pid)}</b> · ${esc(k)}<div>${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'inv': { const [ts, k, iid, amt, po] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(iid)}</b> · ${esc(k)}<div>against ${esc(po)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'labor': { const [ts, k, hrs, d, wid] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(k)}</b> · ${esc(wid)}<div>${esc(d)}</div></span><span class="amt">${hrs} h</span></li>`; }
   }
   return '';
 }
@@ -1127,9 +1145,21 @@ function graph(id, p) {
     <div class="legend"><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link power" style="opacity:1"/></svg>Power</span><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link cool" style="opacity:1"/></svg>Cooling</span><span>! critical · ▲ warning finding</span></div>`;
 }
 
+function evOf(pid, n = 14) {
+  const take = (m, f) => recs(m, pid).slice(0, n).map(f);
+  return [
+    ...take('alarms', r => ({ ts: r[0], t: 'alarm.raised', e: r[5], x: `${r[1]}: ${r[3]}`, a: null })),
+    ...take('alerts', r => ({ ts: r[0], t: 'alert.sent', e: r[2], x: `${r[1].split(' · ')[0]} paged for ${r[3]}`, a: null })),
+    ...take('wos', r => ({ ts: r[0], t: 'wo.opened', e: r[2], x: r[4], a: null })),
+    ...take('labor', r => ({ ts: r[0], t: 'activity.logged', e: r[4], x: `${r[1]}: ${r[3]}`, a: r[2] })),
+    ...take('po', r => ({ ts: r[0], t: 'po.created', e: r[2], x: r[4], a: r[3] })),
+    ...take('inv', r => ({ ts: r[0], t: 'invoice.received', e: r[2], x: `${r[1]} · against ${r[4]}`, a: r[3] })),
+  ].sort((a, b) => a.ts < b.ts ? 1 : -1).slice(0, n);
+}
 const EVT = { 'alarm.raised': 'Alarm', 'alert.sent': 'Alert sent', 'wo.opened': 'WO opened', 'wo.closed': 'WO closed', 'activity.logged': 'Labor', 'po.created': 'PO created', 'invoice.received': 'Invoice' };
 function events(id, p) {
-  return `<div class="note">Latest ${p.ev.length} events at this position, all sources.</div><ul class="tl">${p.ev.map(e => {
+  const ev = evOf(id);
+  return `<div class="note">Latest ${ev.length} events at this position, all sources. Tap one to follow its lifecycle.</div><ul class="tl">${ev.map(e => {
     const amt = e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a);
     return `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}<br>${e.ts.slice(11)}</span><span class="what"><b>${EVT[e.t] || e.t}</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">${esc(e.e)}</span><div>${esc(e.x)}</div></span><span class="amt">${amt}</span></li>`;
   }).join('')}</ul>`;
@@ -1185,20 +1215,41 @@ document.addEventListener('pointerdown', e => { if (!e.target.closest('.search')
 let toastT;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 1800); }
 /* ---------- lifecycle: alarm → alert → WO → labor → PO → invoice → close ---------- */
+// lifecycles are assembled on demand from the record lists, so every record has one
 const CHX = {};
-function chainIndex(pid) {
+function pidx(pid) {
   if (CHX[pid]) return CHX[pid];
-  const ix = {};
-  ((D.chains || {})[pid] || []).forEach((c, i) => {
-    if (c.a) { ix[c.a[0]] = i; ix[`A|${c.a[1]}|${c.a[3]}`] = i; }
-    if (c.al) ix[c.al[0]] = i;
-    if (c.w) ix[c.w[0]] = ix[c.w[0]] ?? i;
-    c.po.forEach(p => ix[p[0]] = ix[p[0]] ?? i);
-    c.inv.forEach(v => ix[v[0]] = ix[v[0]] ?? i);
-  });
-  return CHX[pid] = ix;
+  const X = { alarm: {}, alarmByWo: {}, alert: {}, alertByAlarm: {}, wo: {}, labor: {}, po: {}, poByWo: {}, inv: {}, invByPo: {} };
+  recs('alarms', pid).forEach(r => { X.alarm[r[5]] = r; if (r[4]) X.alarmByWo[r[4]] = r; });
+  recs('alerts', pid).forEach(r => { X.alert[r[2]] = r; X.alertByAlarm[r[3]] = r; });
+  recs('wos', pid).forEach(r => X.wo[r[2]] = r);
+  recs('labor', pid).forEach(r => (X.labor[r[4]] ||= []).push(r));
+  recs('po', pid).forEach(r => { X.po[r[2]] = r; (X.poByWo[r[5]] ||= []).push(r); });
+  recs('inv', pid).forEach(r => { X.inv[r[2]] = r; (X.invByPo[r[4]] ||= []).push(r); });
+  return CHX[pid] = X;
 }
-const chainFor = (pid, ent) => { const i = chainIndex(pid)[ent]; return i == null ? null : D.chains[pid][i]; };
+function chainFor(pid, ent) {
+  if (!ent || !P[pid]) return null;
+  const X = pidx(pid); let a = null, w = null;
+  if (ent.startsWith('ALM-')) a = X.alarm[ent];
+  else if (ent.startsWith('ALR-')) { const al = X.alert[ent]; a = al && X.alarm[al[3]]; }
+  else if (ent.startsWith('WO-')) w = X.wo[ent];
+  else if (ent.startsWith('PO-')) { const p = X.po[ent]; w = p && X.wo[p[5]]; }
+  else if (ent.startsWith('INV-')) { const i = X.inv[ent]; const p = i && X.po[i[4]]; w = p && X.wo[p[5]]; }
+  if (a && !w && a[4]) w = X.wo[a[4]];
+  if (w && !a) a = X.alarmByWo[w[2]] || null;
+  if (!a && !w) return null;
+  const al = a && X.alertByAlarm[a[5]];
+  const pos = w ? (X.poByWo[w[2]] || []) : [];
+  return {
+    a: a ? [a[5], a[0], a[6], a[1], a[2], a[3]] : null,
+    al: al ? [al[2], al[0], al[1].split(' · ')[1], al[1].split(' · ')[0], al[4]] : null,
+    w: w ? [w[2], ...w[1].split(' '), w[0], w[5], w[6], w[3], w[4]] : null,
+    act: w ? (X.labor[w[2]] || []).map(r => [r[0], r[1], r[2], r[3]]).reverse() : [],
+    po: pos.map(p => [p[2], p[0], p[1], p[3]]).reverse(),
+    inv: pos.flatMap(p => (X.invByPo[p[2]] || []).map(i => [i[2], i[0], i[3], i[1], i[4]])).reverse(),
+  };
+}
 const tparse = s => s ? new Date(s.length <= 10 ? s + 'T12:00:00Z' : s.replace(' ', 'T') + ':00Z').getTime() : null;
 const dur = ms => { const h = ms / 36e5; return h < 1 ? Math.max(1, Math.round(h * 60)) + ' min' : h < 48 ? h.toFixed(h < 10 ? 1 : 0) + ' h' : (h / 24).toFixed(h < 240 ? 1 : 0) + ' d'; };
 const LCK = { alarm: ['Alarm', '--crit'], alert: ['Alert', '--info'], clear: ['Cleared', '--good'], wo: ['WO opened', '--accent'], labor: ['Labor', '--seq2'],
@@ -1229,7 +1280,9 @@ function lcDots(c) {
   }).join('');
 }
 function lcList(pid) {
-  const cs = (D.chains || {})[pid] || [];
+  const X = pidx(pid);
+  const cs = [...recs('alarms', pid).slice(0, 10).map(r => chainFor(pid, r[5])),
+    ...recs('wos', pid).filter(r => !X.alarmByWo[r[2]]).slice(0, 6).map(r => chainFor(pid, r[2]))].filter(Boolean);
   if (!cs.length) return '';
   return `<div class="sect" style="margin-top:4px">Recent lifecycles · tap one to follow it end to end</div><div class="lcl">${cs.map((c, i) => {
     const st = lcSteps(c).filter(x => x.t), t0 = st[0]?.t, t1 = st[st.length - 1]?.t;
@@ -1396,7 +1449,7 @@ function openUnitPeek(b, id) {
   const el = document.createElement('div');
   el.className = 'peek'; el.dataset.pid = Z ? '' : id;
   const stats = [[num(k.alarms), 'alarms'], [num(k.wos), 'work orders'], [num(k.open), 'open WOs'], [usd(k.spend), 'invoiced'], [num(k.labor), 'labor hrs'], [k.pm ? Math.round(100 * k.pmlate / k.pm) + '%' : '—', 'PMs late']];
-  const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${p.ev.slice(0, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
+  const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${evOf(id, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
   el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
     <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     ${fs.length ? `<div class="sect" style="margin-top:8px">Findings</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}

@@ -26,5 +26,5 @@ python build.py --regen   # regenerate the synthetic dataset, detections and lif
 |---|---|
 | `src/generate.py` | Synthetic dataset generator (Parquet files + DuckDB). Fixed seed, with the planted patterns listed in ANSWER_KEY.json |
 | `src/export_plan_data.py` | Rollups, detection rules, drill-down breakdowns → `data/plan_data.json` |
-| `src/plan_template.html` | The page: plain HTML/CSS/JS, no libraries |
+| `src/plan_template.html` | The page: plain HTML/CSS/JS, no libraries. Data is injected gzip-compressed + base64 and unpacked in the browser |
 | `index.html` | Built output |
