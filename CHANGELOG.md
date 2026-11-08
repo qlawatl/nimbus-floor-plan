@@ -2,6 +2,19 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v6 — 2026-11-08 · branch `release/v6`
+**New tap model, used everywhere from the first tap on the drawing:**
+
+| Gesture | Drawing | Burst | Details window / lifecycle |
+|---|---|---|---|
+| **Tap** | Unit or room → its burst | Drill in: metric → breakdown; connected unit → its burst; unit in a room → its burst; last-level item → details | Record → its lifecycle |
+| **Double-tap** | — | Back one level (closes the burst at the top) | Close and return to the bubbles |
+| **Hold** (ring counts down, ~0.5 s) | Unit → full detail panel | Details window: records for a bubble, or a unit/room summary for the center or a unit bubble | — |
+
+- The burst stays on screen; nothing depends on keeping your finger down. Navigation is a stack, so you can go room → alarms → unit → work orders and double-tap back out one step at a time.
+- The unit summary window shows key numbers, findings, the latest activity, and "Open full details".
+- Esc steps back on desktop.
+
 ## v5.3 — 2026-11-08 · branch `release/v5.3`
 - **The records list stays open after you lift your finger.** It becomes scrollable, and tapping a record opens its lifecycle (‹ Back returns you to the list).
 - **Press and hold anywhere on the list to close it.** A countdown ring fills under your finger (0.65 s); when it completes, the list closes and you're back on the same bubbles. Lifting early or scrolling cancels.

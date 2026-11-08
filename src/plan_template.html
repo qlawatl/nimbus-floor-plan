@@ -133,6 +133,9 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .closering .bg { fill: color-mix(in srgb, var(--sheet) 85%, transparent); stroke: var(--line-soft); stroke-width: 5; }
 .closering .fg { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; transform: rotate(-90deg); }
 .closering text { font: 700 22px var(--font-ui); fill: var(--accent); }
+.burstwrap, .peek, #lcwin, #plan { touch-action: manipulation; }
+.peek.live .pk-b { touch-action: pan-y; }
+.pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
 .peek .pk-b { overflow: hidden; padding: 4px 14px; }
@@ -263,7 +266,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v5.3 · synthetic data · tap a unit for details · hold a unit or room to burst · hold a last-level bubble to peek records, press and hold the list to close · tap any record to follow its lifecycle</div>
+      <div class="sub">v6 · synthetic data · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -595,7 +598,7 @@ function closeBurst(wrap) {
   g.querySelectorAll('.sat').forEach(s => { s.style.transitionDelay = '0ms'; s.style.opacity = '0'; });
   setTimeout(() => wrap.remove(), 200);
 }
-const HINT1 = 'Slide onto a circle · hold to drill in · release to open';
+const HINT1 = 'Tap to drill in · hold for details · double-tap to go back';
 const DWELL_MS = 450, BACK_MS = 380;
 function dwellRing(s, r0, ms) {
   if (!s) return;
@@ -748,8 +751,8 @@ const CLOSE_MS = 650;
 function livePeek(b) {
   const el = b.peekEl; if (!el) return;
   el.classList.add('live');
-  el.querySelector('.pk-f').innerHTML = '<span class="pk-ring"></span>Press and hold to close · tap a record to follow it';
-  b.svg.querySelector('.hint').textContent = 'Tap a record · press and hold to close the list';
+  el.querySelector('.pk-f').innerHTML = 'Double-tap to close and go back · tap a record to follow it';
+  b.svg.querySelector('.hint').textContent = 'Tap a record · double-tap to close';
 }
 // press-and-hold closes the list (countdown ring under the finger); a quick tap on a record opens its lifecycle
 let ph = null;
@@ -783,7 +786,7 @@ function closePeek(b) {
   b.curI = undefined; b.cur = null;
   b.svg.querySelectorAll('.sat.hot').forEach(s => s.classList.remove('hot'));
 }
-const HINT2 = 'Slide onto a circle · hold to peek records · release to open · ‹ Back';
+const HINT2 = 'Tap to drill in · hold for details · double-tap to go back';
 function levelUp(b) {
   const l2 = b.svg.querySelector('.l2');
   l2.innerHTML = ''; delete l2.dataset.on;
@@ -867,40 +870,7 @@ $('swClose').onclick = closeSub;
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
-$('plan').addEventListener('pointerdown', e => {
-  if (e.button > 0) return;
-  const n = e.target.closest('.node') || e.target.closest('.zone'); if (!n) return;
-  const id = n.dataset.id || n.dataset.zone;
-  n.classList.add('holding');
-  hold = { id, node: n, open: null, x: e.clientX, y: e.clientY,
-    timer: setTimeout(() => { hold.open = openBurst(id); }, HOLD_MS) };
-});
-const endHold = (e, cancelled) => {
-  if (!hold) return;
-  const h = hold; hold = null;
-  clearTimeout(h.timer); if (h.node) h.node.classList.remove('holding');
-  if (h.open) {
-    const b = h.open, target = !cancelled && b.cur;
-    clearTimeout(b.dwell);
-    if (b.peekEl) { pinBurst(b); livePeek(b); return; }
-    if (target && target.kind === 'back') { if (b.level === 2) levelUp(b); pinBurst(b); return; }
-    if (cancelled && b.pinned) return;
-    closeBurst(b.g);
-    const from = { id: b.id, level: b.level, m: b.parent ? b.parent.m : null };
-    if (target && target.kind === 'sub') openSub(target.id, target.m, target.item || null, from);
-    else if (target && target.kind === 'pos') { S.tab = target.tab; select(target.id); }
-  } else if (!cancelled && !isZone(h.id)) select(h.id);
-  else if (!cancelled) toast('Hold a room to see everything inside it');
-};
-window.addEventListener('pointerup', e => endHold(e, false));
-window.addEventListener('pointercancel', e => endHold(e, true));
-window.addEventListener('pointermove', e => {
-  if (!hold) return;
-  if (hold.open) return hoverBurst(hold.open, e);
-  if (Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) endHold(e, true);
-});
-// once the burst is open, finger movement slides between circles instead of scrolling the page
-$('plan').addEventListener('touchmove', e => { if (hold && hold.open) e.preventDefault(); }, { passive: false });
+/* plan gestures: see tap model below */
 $('plan').addEventListener('contextmenu', e => { if (e.target.closest('.node, .zone')) e.preventDefault(); });
 $('plan').addEventListener('keydown', e => { const g = e.target.closest('.node'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(g.dataset.id); } });
 
@@ -1272,10 +1242,140 @@ function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = tr
 $('lcClose').onclick = closeLC; $('lcscrim').onclick = closeLC; $('lcBack').onclick = closeLC;
 $('swBack').onclick = () => {
   const f = SW.from; closeSub(); if (!f) return;
-  const b = openBurst(f.id); pinBurst(b);
-  if (f.level === 2 && f.m) { const ph = b.hits.find(x => x.m === f.m); if (ph) setTimeout(() => { openLevel2(b, ph); b.svg.querySelector('.hint').textContent = 'Tap a circle · ‹ Back for previous level · tap outside to close'; }, 120); }
+  NAV = [{ id: f.id }]; if (f.level === 2 && f.m) NAV.push({ id: f.id, m: f.m }); showNav();
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('lcwin').hidden) { e.stopImmediatePropagation(); closeLC(); } }, true);
+/* ---------- tap model: tap = drill in · double-tap = back · hold = details (ring countdown) ---------- */
+const TAP = { DOUBLE_MS: 280, HOLD_MS: 520, RING_DELAY: 110, MOVE: 10 };
+function holdRing(x, y, ms, icon) {
+  const el = document.createElement('div');
+  el.className = 'closering'; el.style.left = x + 'px'; el.style.top = y + 'px';
+  const r = 30, c = 2 * Math.PI * r;
+  el.innerHTML = `<svg width="80" height="80" viewBox="-40 -40 80 80" aria-hidden="true"><circle r="${r}" class="bg"/><circle r="${r}" class="fg" style="stroke-dasharray:${c};stroke-dashoffset:${c}"/><text y="7" text-anchor="middle">${icon}</text></svg>`;
+  document.body.appendChild(el);
+  const fg = el.querySelector('.fg'); fg.getBoundingClientRect();
+  fg.style.transition = `stroke-dashoffset ${ms}ms linear`; fg.style.strokeDashoffset = 0;
+  return el;
+}
+// one recognizer per surface; handlers get the hit target (or null for background)
+function gestures(el, { hitAt, tap, dbl, hold, canHold, icon = '≡', stop = false }) {
+  let st = null, last = null, tapT = null;
+  const cancel = () => { if (!st) return; clearTimeout(st.timer); clearTimeout(st.ringT); st.ring && st.ring.remove(); st = null; };
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0) return; if (stop) e.stopPropagation();
+    if (e.target.closest('button, a')) return;
+    cancel();
+    const t = hitAt(e), x = e.clientX, y = e.clientY, ok = hold && (!canHold || canHold(t));
+    st = { t, x, y, ring: null };
+    if (ok) {
+      st.ringT = setTimeout(() => { if (st) st.ring = holdRing(x, y, TAP.HOLD_MS - TAP.RING_DELAY, icon); }, TAP.RING_DELAY);
+      st.timer = setTimeout(() => { const s = st; st = null; s.ring && s.ring.remove(); clearTimeout(tapT); last = null;
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (err) {} hold(s.t, s); }, TAP.HOLD_MS);
+    }
+  });
+  el.addEventListener('pointermove', e => { if (stop) e.stopPropagation(); if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > TAP.MOVE) cancel(); });
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('pointerup', e => {
+    if (stop) e.stopPropagation();
+    if (!st) return;
+    const s = st; cancel();
+    const now = Date.now();
+    if (dbl && last && now - last.t < TAP.DOUBLE_MS && Math.hypot(s.x - last.x, s.y - last.y) < 40) { clearTimeout(tapT); last = null; return dbl(s.t, s); }
+    if (!dbl) return tap && tap(s.t, s);
+    last = { t: now, x: s.x, y: s.y };
+    clearTimeout(tapT); tapT = setTimeout(() => { last = null; tap && tap(s.t, s); }, TAP.DOUBLE_MS);
+  });
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// navigation stack of burst views: { id } = unit/room level, { id, m } = drill-down of one metric
+let NAV = [], CUR = null;
+function hitAtBurst(e) {
+  if (!CUR) return null;
+  let best = null, bd = Infinity;
+  CUR.hits.forEach(h => { const d = Math.hypot(e.clientX - h.x, e.clientY - h.y); if (d <= h.r + 8 && d < bd) { bd = d; best = h; } });
+  return best;
+}
+function showNav() {
+  if (CUR) { CUR.g.remove(); CUR = null; }
+  if (!NAV.length) return;
+  const v = NAV[NAV.length - 1], b = openBurst(v.id);
+  CUR = b; b.pinned = true; b.g.style.pointerEvents = 'auto'; b.g.__b = b;
+  if (v.m) { const ph = b.hits.find(h => h.m === v.m); if (ph) openLevel2(b, ph); }
+  setHint();
+  gestures(b.g, {
+    hitAt: hitAtBurst,
+    tap: t => {
+      if (CUR.peekEl) return;
+      if (!t) return toast('Tap a circle · double-tap to go back');
+      if (t.kind === 'back') return navBack();
+      if (t.kind === 'sub' && CUR.level === 1) return navPush({ id: t.id, m: t.m });
+      if (t.kind === 'sub') return openDetails(t);                                   // last level: no deeper drill
+      if (t.kind === 'pos' && t.id === NAV[NAV.length - 1].id) return toast('Hold for details · double-tap to go back');
+      if (t.kind === 'pos') return navPush({ id: t.id });                            // connected unit or unit in a room
+    },
+    dbl: () => navBack(),
+    canHold: t => t && t.kind !== 'back' && t.kind !== 'none' && !CUR.peekEl,
+    hold: t => openDetails(t),
+  });
+}
+function setHint() {
+  if (!CUR) return;
+  const depth = NAV.length, v = NAV[depth - 1];
+  CUR.svg.querySelector('.hint').textContent = `${depth > 1 ? depth + ' levels in · ' : ''}Tap to drill in · hold for details · double-tap to go back`;
+}
+function openNav(id) { NAV = [{ id }]; showNav(); }
+function navPush(v) { NAV.push(v); showNav(); if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {} }
+function navBack() {
+  if (!CUR) return;
+  if (CUR.peekEl) return closeDetails();
+  NAV.pop();
+  if (!NAV.length) { const g = CUR.g; CUR = null; closeBurst(g); return; }
+  showNav();
+}
+// details window: records for a bubble, or a unit summary for a unit bubble
+function openDetails(t) {
+  if (!CUR || CUR.peekEl) return;
+  if (t.kind === 'pos') openUnitPeek(CUR, t.id); else openPeek(CUR, t);
+  livePeek(CUR);
+  gestures(CUR.peekEl, {
+    stop: true,
+    hitAt: e => e.target.closest('li[data-ent]'),
+    tap: row => { if (row && CUR && CUR.peekEl) openLC(CUR.peekEl.dataset.pid, row.dataset.ent); },
+    dbl: () => closeDetails(),
+  });
+}
+function closeDetails() { if (!CUR || !CUR.peekEl) return; closePeek(CUR); setHint(); }
+function openUnitPeek(b, id) {
+  const Z = isZone(id), p = Z ? ZONES[id] : P[id], k = p.k, fs = Z ? p.findings : (findBy[id] || []);
+  const el = document.createElement('div');
+  el.className = 'peek'; el.dataset.pid = Z ? '' : id;
+  const stats = [[num(k.alarms), 'alarms'], [num(k.wos), 'work orders'], [num(k.open), 'open WOs'], [usd(k.spend), 'invoiced'], [num(k.labor), 'labor hrs'], [k.pm ? Math.round(100 * k.pmlate / k.pm) + '%' : '—', 'PMs late']];
+  const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${p.ev.slice(0, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
+  el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
+    <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    ${fs.length ? `<div class="sect" style="margin-top:8px">Findings</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
+    ${recent}
+    ${Z ? '' : `<button type="button" class="pk-open" data-open="${id}">Open full details ›</button>`}</div>
+    <div class="pk-f"></div>`;
+  b.g.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('on'));
+  b.peekEl = el; b.g.__b = b;
+  el.addEventListener('click', e => { const o = e.target.closest('[data-open]'); if (o) { const g = CUR.g; NAV = []; CUR = null; closeBurst(g); S.tab = 'overview'; select(o.dataset.open); } });
+}
+
+// plan: tap a unit or room = burst it · hold a unit = details panel
+gestures($('plan'), {
+  hitAt: e => { const n = e.target.closest('.node'); if (n) return n.dataset.id; const z = e.target.closest('.zone'); return z ? z.dataset.zone : null; },
+  tap: id => { if (id) openNav(id); },
+  canHold: id => id && !isZone(id),
+  hold: id => { S.tab = 'overview'; select(id); },
+  icon: 'i',
+});
+// lifecycle window: double-tap to close
+gestures($('lcwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeLC(), stop: true });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && CUR && $('lcwin').hidden && $('subwin').hidden) { e.preventDefault(); navBack(); } });
+
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
 
 // desktop opens in a working state: show the first critical finding in the current building
