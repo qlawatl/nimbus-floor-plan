@@ -3,17 +3,15 @@
 An interactive 2D floor plan for a fictional data center operator. Every work order, PO, invoice, alarm, alert and labor entry is tied to a **position**. All data is synthetic.
 
 ## Using it
-Live page (private Claude artifact): https://claude.ai/artifact/JY4YGV7UgUbTcRE6sRFyuA. Each update is committed here and then published to that link. You can also open `index.html` directly in any browser; it needs no server.
-- **Tap** equipment to open the detail panel. It has four tabs: Overview, Flow, Connections and Activity.
-- **Hold** equipment to burst its data into circles. Slide onto a circle and release to open that data's records.
-- **Slide onto a circle and keep holding** to drill into it (alarm codes, vendors, technicians and so on). Release on an item to open its records filtered to that item.
-- **Hold a room** (yard, electrical, mechanical, data hall) to see a rollup of everything in it. Drill into a circle to see which units drive that number.
-- **Search** finds units, alarm codes, vendors, technicians and findings.
-- Use the **building tiles** to switch buildings. Each tile shows its monthly alarm trend and spend.
-- **‹ Back steps up one level.** In a drill-down, slide onto the Back circle and hold it, or release on it, to return to the previous level. Releasing on it leaves the burst on screen so you can tap circles directly. The records window's **‹ Back to burst** reopens the level you came from, and a lifecycle's **‹ Back** returns you to the records or details it was opened from.
-- **Hold a last-level bubble to peek** at its records. The list stays open: tap a record to see its lifecycle, or press and hold (watch the ring fill) to close it and return to the bubbles.
-- **Tap any record** (an alarm, WO, PO or invoice in the records window, the Activity tab, or Flow → Recent lifecycles) to follow it alarm → alert → WO → labor → PO → invoice → close. Each step shows its delay, compared with that unit's averages.
-- Use the **month slider / ▶** to watch the plan change month by month.
+Open the artifact link, or `index.html` in any browser.
+
+| Gesture | Drawing | Burst | Details window / lifecycle |
+|---|---|---|---|
+| **Tap** | Unit or room → its burst | Drill in | Record → its lifecycle |
+| **Double-tap** | — | Back one level | Close and return to the bubbles |
+| **Hold** (ring countdown) | Unit → full detail panel | Details window for that bubble | — |
+
+Also included: search (units, alarm codes, vendors, technicians), building tiles, the month slider / ▶, and a detail panel with Overview, Flow, Connections and Activity tabs.
 
 ## Rebuilding
 ```bash
