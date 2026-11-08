@@ -2,6 +2,14 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v7.2 — 2026-11-08 · branch `release/v7.2`
+- **Breadcrumbs** at the top left while you're drilling: building › unit or room › metric › … › details › Lifecycle. Every hop before the current one is a link: tap it to jump straight back to that level (it closes anything opened above it). The bar is above the windows, so it works from a lifecycle too. The Back circle moved below it.
+- **Removed the blue instruction text** at the bottom of the detail, records, lifecycle and lineage windows, and the hint line over the bubbles.
+- **Live lineage bar chart** at the top of the lineage window, which stays in place as you scroll. One bar shows where the asset sat over time (position = blue, storeroom bin = light blue, quarantine = red, repair depot = amber, warehouse or vendor = gray), with numbered dots at each move. The last 6 months get 65% of the width, and there's a "6 MO AGO" marker and a pulsing NOW. The segments grow in when the window opens.
+  - Tap a **dot or segment** to jump to its row (highlighted in the list and on the map).
+  - Tap a **row** to bring it to the top of the list, just under the chart, with its dot highlighted.
+  - The **↑ Top** button appears once you scroll down and takes you back to the top.
+
 ## v7.1 — 2026-11-08 · branch `release/v7.1`
 - **Fix:** double-tapping to close a record's lifecycle a second time could send you to the main page instead. Tapping a record and then double-tapping to close was being counted as a triple-tap. A triple-tap now requires three quick taps (each under 300 ms apart) in one spot, and any tap that opens something (lifecycle, details, records, lineage, a drill-down) starts a new count.
 

@@ -173,6 +173,31 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .lin-list li.recent .n { border-color: var(--accent); color: var(--accent); }
 .lin-list .b { display: grid; gap: 1px; } .lin-list .b b { font-size: 13.5px; } .lin-list .b span { font-size: 13px; } .lin-list small { color: var(--ink-3); font-size: 11.5px; }
 .pk-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dtfoot, .dthint, .peek .pk-f, .burst .hint { display: none !important; }
+.crumbs { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px;
+  width: fit-content; max-width: calc(100% - 16px); padding: 6px 10px; border-radius: 12px; background: color-mix(in srgb, var(--sheet) 92%, transparent); border: 1px solid var(--line-soft); box-shadow: 0 4px 14px rgba(0,0,0,.12); font: 13px var(--font-ui); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.crumbs button { border: 0; background: none; color: var(--accent); font: 600 13px var(--font-ui); padding: 4px 2px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.crumbs span { color: var(--ink-3); } .crumbs b { font-weight: 700; padding: 4px 2px; }
+.linchart { position: sticky; top: -12px; z-index: 2; background: var(--sheet); padding: 4px 0 6px; border-bottom: 1px solid var(--hair); }
+.linchart svg { width: 100%; height: auto; display: block; }
+.linchart .seg { transform-box: fill-box; transform-origin: left; transform: scaleX(0); transition: transform .45s ease; cursor: pointer; stroke: var(--sheet); stroke-width: 1; }
+.linchart.grow .seg { transform: none; }
+.linchart .seg.focus { stroke: var(--ink); stroke-width: 2; }
+.linchart .cdot { cursor: pointer; } .linchart .cdot circle { fill: var(--sheet); stroke: var(--ink-3); stroke-width: 1.6; }
+.linchart .cdot.recent circle { stroke: var(--accent); }
+.linchart .cdot.focus circle { fill: var(--accent); stroke: var(--accent); } .linchart .cdot.focus text { fill: #fff; }
+.linchart .cdot text { font: 700 7.5px var(--font-mono); fill: var(--ink); text-anchor: middle; pointer-events: none; }
+.linchart .seglab { font: 600 7.5px var(--font-ui); fill: var(--ink-2); }
+.linchart .axl { font: 600 7px var(--font-mono); fill: var(--ink-3); letter-spacing: .06em; }
+.linchart .sixline { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.linchart .nowdot { fill: var(--good); }
+.linchart .tick { stroke: var(--ink-3); stroke-width: 1; }
+@media (prefers-reduced-motion: no-preference) { .linchart .nowdot { animation: pulse 1.6s ease-in-out infinite; } }
+@media (prefers-reduced-motion: reduce) { .linchart .seg { transition: none; } }
+.lin-list li { scroll-margin-top: 78px; }
+.totop { position: absolute; right: 14px; bottom: 14px; border: 1px solid var(--accent); background: var(--sheet); color: var(--accent); border-radius: 18px; padding: 7px 12px; font: 600 13px var(--font-ui); box-shadow: 0 4px 12px rgba(0,0,0,.15); cursor: pointer; z-index: 3; }
+.totop[hidden] { display: none; }
+.linwin { position: fixed; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -307,7 +332,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v7.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v7.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -359,11 +384,12 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 </div>
 
 <div class="toast" id="toast" hidden role="status"></div>
+<nav class="crumbs" id="crumbs" hidden aria-label="Where you are"></nav>
 <section class="subwin linwin" id="linwin" hidden role="dialog" aria-labelledby="linTitle" style="z-index:42">
   <div class="grab" style="display:block"></div>
   <div class="ph"><div class="ph-top"><div><h3 id="linTitle"></h3><div class="crumb" id="linCrumb"></div></div></div></div>
   <div class="pb" id="linBody"></div>
-  <div class="dtfoot">Double-tap to close · tap a step to find it on the map</div>
+  <button type="button" class="totop" id="linTop" hidden>↑ Top</button>
 </section>
 <div class="subscrim" id="lcscrim" hidden style="z-index:44"></div>
 <section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:45">
@@ -849,7 +875,7 @@ function openLevel2(b, parent) {
   l2.getBoundingClientRect();
   const go = () => { if (l2.dataset.on) return; l2.dataset.on = 1; l2.querySelectorAll('.sat').forEach(s => { const [x, y] = s.dataset.to.split(',').map(Number); s.style.opacity = 1; s.style.transform = `translate(${x}px,${y}px) scale(1)`; }); };
   requestAnimationFrame(go); setTimeout(go, 40);
-  const rB = Math.max(26, base * .85), bx = rB + 14, by = rB + 44;
+  const rB = Math.max(26, base * .85), bx = rB + 14, by = rB + 64;
   hits.push({ x: bx, y: by, r: rB, id, name: 'back', kind: 'back' });
   l2.insertAdjacentHTML('beforeend', `<g class="sat back" data-i="${hits.length - 1}" data-to="${bx},${by}" style="opacity:1;transform:translate(${bx}px,${by}px)">
     <circle r="${rB}" fill="var(--sheet)" stroke="var(--accent)" stroke-width="2"/>
@@ -905,7 +931,7 @@ function openPeek(b, t) {
     b.__pg = { m, rows };
   }
   const el = document.createElement('div');
-  el.className = 'peek'; el.dataset.pid = id;
+  el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, '');
   el.addEventListener('click', e => { if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
@@ -1441,8 +1467,9 @@ function openLC(pid, ent) { opened();
     <ol class="lcol">${rows}</ol>`;
   $('lcwin').hidden = false; $('lcscrim').hidden = false;
   requestAnimationFrame(() => $('lcwin').classList.add('open'));
+  updateCrumbs();
 }
-function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = true; $('lcscrim').hidden = true; }
+function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = true; $('lcscrim').hidden = true; updateCrumbs(); }
 $('lcscrim').onclick = closeLC; $('lcBack').onclick = closeLC;
 $('swBack').onclick = () => {
   const f = SW.from; closeSub(); if (!f) return;
@@ -1526,18 +1553,37 @@ function showNav() {
     hold: t => openDetails(t),
   });
 }
-function setHint() {
-  if (!CUR) return;
-  const depth = NAV.length, v = NAV[depth - 1];
-  CUR.svg.querySelector('.hint').textContent = `${depth > 1 ? depth + ' levels in · ' : ''}Tap to drill in · hold for details · double-tap to go back`;
+function setHint() { updateCrumbs(); }
+// breadcrumbs: building › unit/room › metric › … › details › lifecycle — every earlier hop is tappable
+function updateCrumbs() {
+  const el = $('crumbs');
+  if (!CUR || !NAV.length) { el.hidden = true; return; }
+  const items = [{ label: NAV[0].id.replace(/^Z:/, '').slice(0, 5), act: 'root' }];
+  NAV.forEach((v, i) => items.push({ label: v.m ? MTITLE[v.m] : titleOf(v.id), act: 'd' + i }));
+  if (CUR.peekEl) items.push({ label: CUR.peekEl.dataset.title || 'Details', act: 'peek' });
+  if (!$('lcwin').hidden) items.push({ label: 'Lifecycle', act: 'lc' });
+  el.innerHTML = items.map((it, i) => i === items.length - 1
+    ? `<b aria-current="page">${esc(it.label)}</b>`
+    : `<button type="button" data-act="${it.act}">${esc(it.label)}</button><span aria-hidden="true">›</span>`).join('');
+  el.hidden = false;
 }
+$('crumbs').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'peek') return closeLC();
+  if (!$('lcwin').hidden) closeLC();
+  if (act === 'root') { const g = CUR && CUR.g; NAV = []; CUR = null; g && closeBurst(g); updateCrumbs(); return; }
+  const depth = +act.slice(1);
+  if (CUR && CUR.peekEl) closePeek(CUR);
+  NAV = NAV.slice(0, depth + 1); showNav();
+});
 function openNav(id) { opened(); NAV = [{ id }]; showNav(); }
 function navPush(v) { opened(); NAV.push(v); showNav(); if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {} }
 function navBack() {
   if (!CUR) return;
   if (CUR.peekEl) return closeDetails();
   NAV.pop();
-  if (!NAV.length) { const g = CUR.g; CUR = null; closeBurst(g); return; }
+  if (!NAV.length) { const g = CUR.g; CUR = null; closeBurst(g); updateCrumbs(); return; }
   showNav();
 }
 // details window: records for a bubble, or a unit summary for a unit bubble
@@ -1545,6 +1591,7 @@ function openDetails(t) { opened();
   if (!CUR || CUR.peekEl) return;
   if (t.kind === 'pos') openUnitPeek(CUR, t.id); else openPeek(CUR, t);
   livePeek(CUR);
+  updateCrumbs();
   gestures(CUR.peekEl, {
     stop: true,
     hitAt: e => e.target.closest('li[data-ent]'),
@@ -1552,11 +1599,11 @@ function openDetails(t) { opened();
     dbl: () => closeDetails(),
   });
 }
-function closeDetails() { if (!CUR || !CUR.peekEl) return; closePeek(CUR); setHint(); }
+function closeDetails() { if (!CUR || !CUR.peekEl) return; closePeek(CUR); updateCrumbs(); }
 function openUnitPeek(b, id) {
   const Z = isZone(id), p = Z ? ZONES[id] : P[id], k = p.k, fs = Z ? p.findings : (findBy[id] || []);
   const el = document.createElement('div');
-  el.className = 'peek'; el.dataset.pid = Z ? '' : id;
+  el.className = 'peek'; el.dataset.pid = Z ? '' : id; el.dataset.title = 'Details';
   const stats = [[num(k.alarms), 'alarms'], [num(k.wos), 'work orders'], [num(k.open), 'open WOs'], [usd(k.spend), 'invoiced'], [num(k.labor), 'labor hrs'], [k.pm ? Math.round(100 * k.pmlate / k.pm) + '%' : '—', 'PMs late']];
   const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${evOf(id, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
   el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
@@ -1601,7 +1648,7 @@ function lineageSVG(aid, site) {
 }
 function openLineage(aid) { opened();
   const a = D.lineage[aid]; if (!a) return toast('No movement history for this asset');
-  if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); }
+  if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); updateCrumbs(); }
   if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (S.sel) closePanel(true);
   const st = linSteps(aid), cur = st[st.length - 1], six = locAt(st, SIX_MO);
   const curSite = (P[cur.to] ? cur.to : cur.to.startsWith('E1') || cur.to.startsWith('W1') ? cur.to : S.b).slice(0, 2);
@@ -1615,21 +1662,48 @@ function openLineage(aid) { opened();
       <div class="stat"><b>${esc(locName(cur.to))}</b><span>Now · since ${new Date(cur.t).toISOString().slice(0, 10)}</span></div>
       <div class="stat six"><b>${esc(locName(six))}</b><span>6 months ago · ${new Date(SIX_MO).toISOString().slice(0, 10)}</span></div>
       <div class="stat"><b>${moved6.length} move${moved6.length === 1 ? '' : 's'}</b><span>in the last 6 months</span></div></div>
-    <div class="sect">Movement history · tap a step to find it on the map</div>
+    <div class="linchart">${linChart(st)}</div>
     <ol class="lin-list">${st.map((s, k) => `<li class="${s.t >= SIX_MO ? 'recent' : ''}" data-step="${k}"><span class="n">${k + 1}</span>
       <span class="b"><b>${EVN[s.ev] || s.ev}</b><span>${s.from ? esc(locName(s.from)) + ' → ' : ''}${esc(locName(s.to))}</span>
       <small>${new Date(s.t).toISOString().slice(0, 10)}${s.ref ? ' · ' + esc(s.ref) : ''}${s.note ? ' · ' + esc(s.note) : ''}</small></span></li>`).join('')}</ol>`;
-  $('linwin').hidden = false;
-  requestAnimationFrame(() => $('linwin').classList.add('open'));
+  $('linwin').hidden = false; $('linTop').hidden = true;
+  requestAnimationFrame(() => { $('linwin').classList.add('open'); requestAnimationFrame(() => $('linBody').querySelector('.linchart').classList.add('grow')); });
   document.querySelector('.drawing').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function closeLineage() { S.lin = null; $('linwin').classList.remove('open'); $('linwin').hidden = true; drawPlan(); }
-function focusStep(k) {
-  document.querySelectorAll('#plan .stop').forEach(s => s.classList.toggle('focus', +s.dataset.step === k));
-  document.querySelectorAll('#linBody li').forEach(li => li.classList.toggle('focus', +li.dataset.step === k));
-  const li = document.querySelector(`#linBody li[data-step="${k}"]`); if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+// time at each location as one segmented bar; last 6 months get 65% of the width so recent moves stay readable
+function linChart(st) {
+  const W = 340, x0 = 8, x1 = W - 8, t0 = st[0].t, split = t0 < SIX_MO;
+  const X = t => !split ? x0 + (t - t0) / (AS_OF - t0) * (x1 - x0)
+    : t < SIX_MO ? x0 + (t - t0) / (SIX_MO - t0) * .35 * (x1 - x0) : x0 + .35 * (x1 - x0) + (t - SIX_MO) / (AS_OF - SIX_MO) * .65 * (x1 - x0);
+  const col = loc => P[loc] ? 'var(--accent)' : loc.endsWith('QUARANTINE') ? 'var(--crit)' : loc.startsWith('DEPOT') ? 'var(--warn)' : /-SR:/.test(loc) ? 'var(--seq2)' : 'var(--ink-3)';
+  const short = loc => P[loc] ? titleOf(loc) : loc.endsWith('QUARANTINE') ? 'Quarantine' : loc.startsWith('DEPOT') ? 'Depot' : /-SR:/.test(loc) ? 'Bin ' + loc.split(':')[1] : loc === 'WH-CENTRAL' ? 'Warehouse' : 'Vendor';
+  let s = '', lab = '';
+  st.forEach((m, k) => {
+    const a = X(m.t), b = X(k + 1 < st.length ? st[k + 1].t : AS_OF), w = Math.max(1.5, b - a);
+    s += `<rect class="seg" data-step="${k}" x="${a}" y="14" width="${w}" height="18" fill="${col(m.to)}" style="transition-delay:${k * 70}ms"><title>${esc(locName(m.to))}</title></rect>`;
+    if (w > 34) lab += `<text x="${a + w / 2}" y="44" text-anchor="middle" class="seglab">${esc(short(m.to))}</text>`;
+  });
+  // dots keep at least 16 px apart so moves on nearby dates don't hide each other (a tick marks the true time)
+  let px = -99; const dx = st.map(m => { const v = Math.max(X(m.t), px + 16); px = v; return v; });
+  const over = dx[dx.length - 1] - (x1 - 2); if (over > 0) for (let k = dx.length - 1, lim = x1 - 2; k >= 0; k--, lim -= 16) dx[k] = Math.min(dx[k], lim);
+  st.forEach((m, k) => s += `${Math.abs(dx[k] - X(m.t)) > 1 ? `<line x1="${X(m.t)}" y1="14" x2="${dx[k]}" y2="23" class="tick"/>` : ''}<g class="cdot${m.t >= SIX_MO ? ' recent' : ''}" data-step="${k}"><circle cx="${dx[k]}" cy="23" r="7.5"/><text x="${dx[k]}" y="26">${k + 1}</text></g>`);
+  const sx = split ? X(SIX_MO) : null;
+  return `<svg viewBox="0 0 ${W} 60" role="img" aria-label="Where this asset has been over time">
+    ${sx ? `<line x1="${sx}" y1="4" x2="${sx}" y2="36" class="sixline"/><text x="${sx + 3}" y="9" class="axl">6 MO AGO</text>` : ''}
+    <text x="${x0}" y="9" class="axl">${new Date(t0).toISOString().slice(0, 7)}</text><text x="${x1}" y="9" class="axl" text-anchor="end">NOW</text>
+    ${s}${lab}<circle cx="${x1}" cy="23" r="3" class="nowdot"/></svg>`;
 }
-$('linBody').addEventListener('click', e => { const li = e.target.closest('li[data-step]'); if (li) focusStep(+li.dataset.step); });
+function closeLineage() { S.lin = null; $('linwin').classList.remove('open'); $('linwin').hidden = true; drawPlan(); }
+// dot (chart or map) -> jump to its row; row -> lift it to the top, under the chart
+function focusStep(k, fromRow) {
+  document.querySelectorAll('#plan .stop').forEach(s => s.classList.toggle('focus', +s.dataset.step === k));
+  document.querySelectorAll('#linBody [data-step]').forEach(n => n.classList.toggle('focus', +n.dataset.step === k));
+  const li = document.querySelector(`#linBody li[data-step="${k}"]`); if (!li) return;
+  li.scrollIntoView({ block: fromRow ? 'start' : 'center', behavior: 'smooth' });
+}
+$('linBody').addEventListener('click', e => { const n = e.target.closest('[data-step]'); if (n) focusStep(+n.dataset.step, n.tagName === 'LI'); });
+$('linBody').addEventListener('scroll', () => { $('linTop').hidden = $('linBody').scrollTop < 140; });
+$('linTop').onclick = () => $('linBody').scrollTo({ top: 0, behavior: 'smooth' });
 // storeroom stock: what's on the shelves now, each with its lineage
 function openStock(sr) { opened();
   const items = Object.entries(D.lineage).map(([aid, a]) => ({ aid, a, loc: lastLoc(a) })).filter(x => x.loc && x.loc.startsWith(sr));
@@ -1650,6 +1724,7 @@ function goHome() {
   if (!$('subwin').hidden) closeSub();
   if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); }
   document.querySelectorAll('.burstwrap, .closering').forEach(x => x.remove());
+  updateCrumbs();
   $('qres').hidden = true;
   if (!$('linwin').hidden) { $('linwin').classList.remove('open'); $('linwin').hidden = true; }
   S.lin = null; S.view = 'building';
