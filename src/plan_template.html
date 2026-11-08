@@ -121,6 +121,29 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .brow .bt { height: 10px; background: var(--hair); border-radius: 5px; overflow: hidden; }
 .brow .bt span { display: block; height: 100%; border-radius: 5px; border: 1px solid var(--line-soft); }
 .brow .bv { font-size: 13px; font-weight: 600; }
+.tl li.lc { cursor: pointer; } .tl li.lc:hover { background: var(--paper); }
+.tl li.lc .amt::after { content: ' ›'; color: var(--ink-3); }
+.lcl { display: grid; gap: 4px; }
+.lcrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--hair); border-radius: 8px; background: var(--sheet); padding: 8px 10px; cursor: pointer; text-align: left; width: 100%; }
+.lcrow:hover { background: var(--paper); }
+.lcrow .lt b { font-size: 13px; font-family: var(--font-mono); } .lcrow .lt small { display: block; font-size: 11.5px; color: var(--ink-3); }
+.dots { display: flex; gap: 4px; flex-shrink: 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line-soft); }
+.dot.on { background: var(--c); border-color: var(--c); }
+.dot.bad { background: none; border: 2px dashed var(--crit); }
+.lck { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.lck small { display: block; color: var(--ink-3); } .lck small.worse { color: var(--crit); font-weight: 600; } .lck small.better { color: var(--good); font-weight: 600; }
+.lcstrip { width: 100%; height: auto; display: block; }
+.lcol { list-style: none; margin: 0; padding: 0; }
+.lcs { display: grid; grid-template-columns: 18px 1fr; gap: 10px; position: relative; padding-bottom: 12px; }
+.lcs::before { content: ''; position: absolute; left: 8px; top: 16px; bottom: 0; width: 2px; background: var(--hair); }
+.lcs:last-child::before { display: none; }
+.lcd { width: 14px; height: 14px; border-radius: 50%; background: var(--c); margin-top: 3px; box-shadow: 0 0 0 3px var(--sheet); z-index: 1; }
+.lcs.gap .lcd, .lcs.open .lcd { background: none; border: 2px dashed var(--c); }
+.lcb { display: grid; gap: 2px; min-width: 0; }
+.lch { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; } .lch .mono { color: var(--ink-2); font-size: 12px; }
+.lct { font-size: 14px; } .lcx { font-size: 12.5px; color: var(--ink-2); } .lcw { font-size: 11px; color: var(--ink-3); }
+.lcs.bad .lch b, .lcs.bad .lcx { color: var(--crit); }
 .tl li.hit { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .timebar { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 8px 10px; }
 .timebar input { width: 100%; accent-color: var(--accent); }
@@ -220,7 +243,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v4 · synthetic data · tap a unit for details · hold a unit or a room to burst · slide + hold a circle to drill in</div>
+      <div class="sub">v5 · synthetic data · tap a unit for details · hold a unit or room to burst · tap any record to follow its lifecycle</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -271,6 +294,12 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 </div>
 
 <div class="toast" id="toast" hidden role="status"></div>
+<div class="subscrim" id="lcscrim" hidden style="z-index:44"></div>
+<section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:45">
+  <div class="grab" style="display:block"></div>
+  <div class="ph"><div class="ph-top"><div><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div><button class="x" id="lcClose" aria-label="Close">×</button></div></div>
+  <div class="pb" id="lcBody"></div>
+</section>
 <div class="subscrim" id="subscrim" hidden></div>
 <section class="subwin" id="subwin" hidden role="dialog" aria-modal="true" aria-labelledby="swTitle">
   <div class="grab" style="display:block"></div>
@@ -654,7 +683,8 @@ function openSub(id, m, item) {
 }
 function closeSub() { $('subwin').classList.remove('open'); $('subwin').hidden = true; $('subscrim').hidden = true; }
 function recRow(m, r, hit) {
-  const cls = hit ? ' class="hit"' : '';
+  const ent = m === 'alarms' ? `A|${r[0]}|${r[1]}` : m === 'labor' ? r[4] : r[2];
+  const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
     case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> ${sevtag(sev === 'major' ? 'warning' : sev === 'critical' ? 'critical' : 'info').replace(/warning|info/, sev)}<div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
     case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
@@ -696,7 +726,7 @@ function renderSub() {
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swBody').addEventListener('click', e => { const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
 $('swClose').onclick = closeSub;
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
@@ -832,7 +862,7 @@ function renderPanel() {
   body.querySelectorAll('[data-spark]').forEach(wireSpark);
 }
 $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.tab = b.dataset.t; renderPanel(); } });
-$('pbody').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) select(g.dataset.go); });
+$('pbody').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) return select(g.dataset.go); const l = e.target.closest('li.lc[data-ent], .lcrow[data-ent]'); if (l) openLC(S.sel, l.dataset.ent); });
 
 function overview(id, p) {
   const k = p.k, fs = findBy[id] || [];
@@ -920,7 +950,7 @@ function flow(id, p) {
   s += pipe(246, 300, pi.n, `${num(pi.n)} invoices`, `avg ${pi.lag != null ? Math.round(pi.lag / 24) : '—'} days after PO`);
   s += box(300, 'Invoices', usd(pi.amt || 0), `${pi.amt && wp.amt ? Math.round(100 * pi.amt / wp.amt) + '% of PO value' : '—'}`);
   s += '</svg>';
-  return `<div class="note">Every record below is linked to this position through the edges table. Pipe width shows volume; lags are averages over Jan 2025 – Oct 2026.</div>${s}`;
+  return `<div class="note">Every record below is linked to this position through the edges table. Pipe width shows volume; lags are averages over Jan 2025 – Oct 2026.</div>${s}${lcList(id)}`;
 }
 
 function graph(id, p) {
@@ -949,7 +979,7 @@ const EVT = { 'alarm.raised': 'Alarm', 'alert.sent': 'Alert sent', 'wo.opened': 
 function events(id, p) {
   return `<div class="note">Latest ${p.ev.length} events at this position, all sources.</div><ul class="tl">${p.ev.map(e => {
     const amt = e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a);
-    return `<li><span class="when">${e.ts.slice(0, 10)}<br>${e.ts.slice(11)}</span><span class="what"><b>${EVT[e.t] || e.t}</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">${esc(e.e)}</span><div>${esc(e.x)}</div></span><span class="amt">${amt}</span></li>`;
+    return `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}<br>${e.ts.slice(11)}</span><span class="what"><b>${EVT[e.t] || e.t}</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">${esc(e.e)}</span><div>${esc(e.x)}</div></span><span class="amt">${amt}</span></li>`;
   }).join('')}</ul>`;
 }
 
@@ -1002,6 +1032,104 @@ $('qres').addEventListener('click', e => {
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.search')) $('qres').hidden = true; });
 let toastT;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 1800); }
+/* ---------- lifecycle: alarm → alert → WO → labor → PO → invoice → close ---------- */
+const CHX = {};
+function chainIndex(pid) {
+  if (CHX[pid]) return CHX[pid];
+  const ix = {};
+  ((D.chains || {})[pid] || []).forEach((c, i) => {
+    if (c.a) { ix[c.a[0]] = i; ix[`A|${c.a[1]}|${c.a[3]}`] = i; }
+    if (c.al) ix[c.al[0]] = i;
+    if (c.w) ix[c.w[0]] = ix[c.w[0]] ?? i;
+    c.po.forEach(p => ix[p[0]] = ix[p[0]] ?? i);
+    c.inv.forEach(v => ix[v[0]] = ix[v[0]] ?? i);
+  });
+  return CHX[pid] = ix;
+}
+const chainFor = (pid, ent) => { const i = chainIndex(pid)[ent]; return i == null ? null : D.chains[pid][i]; };
+const tparse = s => s ? new Date(s.length <= 10 ? s + 'T12:00:00Z' : s.replace(' ', 'T') + ':00Z').getTime() : null;
+const dur = ms => { const h = ms / 36e5; return h < 1 ? Math.max(1, Math.round(h * 60)) + ' min' : h < 48 ? h.toFixed(h < 10 ? 1 : 0) + ' h' : (h / 24).toFixed(h < 240 ? 1 : 0) + ' d'; };
+const LCK = { alarm: ['Alarm', '--crit'], alert: ['Alert', '--info'], clear: ['Cleared', '--good'], wo: ['WO opened', '--accent'], labor: ['Labor', '--seq2'],
+  po: ['PO', '--seq4'], inv: ['Invoice', '--seq5'], close: ['WO closed', '--good'], gap: ['Missing', '--crit'], open: ['Open', '--warn'] };
+function lcSteps(c) {
+  const s = [];
+  if (c.a) s.push({ k: 'alarm', t: tparse(c.a[1]), title: `${c.a[3]}`, d: `${c.a[4]} · ${c.a[5]}`, id: c.a[0], sev: c.a[4] });
+  if (c.al) s.push({ k: 'alert', t: tparse(c.al[1]), title: `Paged ${c.al[3]} · ${c.al[2]}`, d: c.al[4] ? 'Acknowledged' : 'Not acknowledged', bad: !c.al[4], id: c.al[0] });
+  if (c.a && c.a[2]) s.push({ k: 'clear', t: tparse(c.a[2]), title: 'Alarm cleared', d: '' });
+  if (c.w) {
+    const [wid, typ, pr, op, cl, due, st, desc] = c.w;
+    s.push({ k: 'wo', t: tparse(op), title: `${wid} · ${typ} ${pr}`, d: desc, id: wid });
+    c.act.forEach(a => s.push({ k: 'labor', t: tparse(a[0]), title: `${a[1]} · ${a[2]} h`, d: a[3], hrs: a[2] }));
+    c.po.forEach(p => s.push({ k: 'po', t: tparse(p[1]), title: `${p[0]} · ${p[2]}`, d: 'Purchase order raised', amt: p[3], id: p[0] }));
+    c.inv.forEach(v => s.push({ k: 'inv', t: tparse(v[1]), title: `${v[0]} · ${v[3]}`, d: `Billed against ${v[4]}`, amt: v[2], id: v[0] }));
+    if (cl) { const late = tparse(cl) - tparse(due); s.push({ k: 'close', t: tparse(cl), title: 'Work order closed', d: late > 0 ? `${dur(late)} past due` : 'Closed on time', bad: late > 0 }); }
+  }
+  s.sort((a, b) => a.t - b.t);
+  if (c.a && !c.w) s.push({ k: 'gap', t: null, title: 'No work order created', d: c.a[4] === 'critical' || c.a[4] === 'major' ? 'Critical/major alarm with no follow-up' : 'Minor alarm, no WO needed', bad: c.a[4] === 'critical' || c.a[4] === 'major' });
+  if (c.w && !c.w[4]) s.push({ k: 'open', t: null, title: `Still ${c.w[6].toLowerCase()}`, d: `Due ${c.w[5].slice(0, 10)}` });
+  return s;
+}
+function lcDots(c) {
+  const st = lcSteps(c), has = k => st.some(x => x.k === k);
+  return ['alarm', 'alert', 'wo', 'labor', 'po', 'inv', 'close'].map(k => {
+    const on = has(k), bad = (k === 'wo' && c.a && !c.w && ['critical', 'major'].includes(c.a[4])) || (k === 'alert' && c.al && !c.al[4]);
+    return `<i class="dot${on ? ' on' : ''}${bad ? ' bad' : ''}" style="--c:var(${LCK[k][1]})" title="${LCK[k][0]}"></i>`;
+  }).join('');
+}
+function lcList(pid) {
+  const cs = (D.chains || {})[pid] || [];
+  if (!cs.length) return '';
+  return `<div class="sect" style="margin-top:4px">Recent lifecycles · tap one to follow it end to end</div><div class="lcl">${cs.map((c, i) => {
+    const st = lcSteps(c).filter(x => x.t), t0 = st[0]?.t, t1 = st[st.length - 1]?.t;
+    const label = c.a ? c.a[3] : `${c.w[0]} · ${c.w[1]} ${c.w[2]}`, ent = c.a ? c.a[0] : c.w[0];
+    return `<button type="button" class="lcrow" data-ent="${esc(ent)}"><span class="lt"><b>${esc(label)}</b><small>${(c.a ? c.a[1] : c.w[3]).slice(0, 10)}${t1 > t0 ? ' · ' + dur(t1 - t0) + ' span' : ''}</small></span><span class="dots">${lcDots(c)}</span></button>`;
+  }).join('')}</div>`;
+}
+function openLC(pid, ent) {
+  const c = chainFor(pid, ent);
+  if (!c) return toast('No linked lifecycle for that record');
+  const st = lcSteps(c), timed = st.filter(x => x.t), t0 = timed[0].t, tEnd = timed[timed.length - 1].t, span = Math.max(1, tEnd - t0);
+  const p = P[pid], f = p.flow, avg = (k) => (f[k] || {}).lag;
+  const find = k => timed.find(x => x.k === k);
+  const a = find('alarm'), w = find('wo'), po = find('po'), cl = find('close'), invs = timed.filter(x => x.k === 'inv');
+  const spend = invs.reduce((s, x) => s + x.amt, 0), labor = timed.filter(x => x.k === 'labor').reduce((s, x) => s + x.hrs, 0);
+  const cmp = (ms, avgH) => avgH == null ? '' : `<small class="${ms / 36e5 > avgH * 1.5 ? 'worse' : ms / 36e5 < avgH * .67 ? 'better' : ''}">avg ${dur(avgH * 36e5)}</small>`;
+  const kpis = [
+    a && w ? ['Alarm → WO', dur(w.t - a.t), cmp(w.t - a.t, avg('alarm>wo'))] : a ? ['Alarm → WO', 'none', '<small class="worse">no follow-up</small>'] : null,
+    w && cl ? ['WO open → closed', dur(cl.t - w.t), ''] : w ? ['WO open', 'still open', ''] : null,
+    w && po ? ['WO → PO', dur(po.t - w.t), cmp(po.t - w.t, avg('wo>po'))] : null,
+    po && invs.length ? ['PO → invoice', dur(invs[0].t - po.t), cmp(invs[0].t - po.t, avg('po>invoice'))] : null,
+    spend ? ['Invoiced', usd(spend), ''] : null,
+    labor ? ['Labor', labor.toFixed(1) + ' h', ''] : null,
+  ].filter(Boolean);
+  // log-time strip: minutes and months on one line
+  const Wd = 340, L = x => 10 + (Wd - 20) * Math.log1p((x - t0) / 6e4) / Math.log1p(span / 6e4);
+  const ticks = [[36e5, '1h'], [864e5, '1d'], [6048e5, '1w'], [2592e6, '30d']].filter(([ms]) => ms < span);
+  let strip = `<svg viewBox="0 0 ${Wd} 46" class="lcstrip" role="img" aria-label="Lifecycle timeline, log scale"><line x1="10" y1="22" x2="${Wd - 10}" y2="22" stroke="var(--line-soft)" stroke-width="2"/>`;
+  ticks.forEach(([ms, l]) => { const x = L(t0 + ms); strip += `<line x1="${x}" y1="17" x2="${x}" y2="27" stroke="var(--line-soft)"/><text x="${x}" y="42" font-size="9" text-anchor="middle" fill="var(--ink-3)" font-family="var(--font-mono)">${l}</text>`; });
+  timed.forEach(x => strip += `<circle cx="${L(x.t)}" cy="22" r="${x.k === 'alarm' || x.k === 'close' ? 6 : 4.5}" fill="var(${LCK[x.k][1]})" stroke="var(--sheet)" stroke-width="1.5"><title>${LCK[x.k][0]}</title></circle>`);
+  strip += `<text x="10" y="10" font-size="9" fill="var(--ink-3)" font-family="var(--font-mono)">start</text><text x="${Wd - 10}" y="10" font-size="9" text-anchor="end" fill="var(--ink-3)" font-family="var(--font-mono)">+${dur(span)}</text></svg>`;
+  let prev = null;
+  const rows = st.map(x => {
+    const dt = x.t && prev ? `+${dur(x.t - prev)}` : x.t ? 'start' : '';
+    if (x.t) prev = x.t;
+    const when = x.t ? new Date(x.t).toISOString().slice(0, 16).replace('T', ' ') : '—';
+    return `<li class="lcs ${x.k}${x.bad ? ' bad' : ''}"><span class="lcd" style="--c:var(${LCK[x.k][1]})"></span>
+      <span class="lcb"><span class="lch"><b>${LCK[x.k][0]}</b><span class="mono">${dt}</span></span>
+      <span class="lct">${esc(x.title)}${x.amt != null ? ` · <span class="mono">${usd(x.amt)}</span>` : ''}</span>
+      ${x.d ? `<span class="lcx">${esc(x.d)}</span>` : ''}${x.t ? `<span class="lcw mono">${when}</span>` : ''}</span></li>`;
+  }).join('');
+  $('lcTitle').textContent = `${titleOf(pid)} · lifecycle`;
+  $('lcCrumb').textContent = `${pid} · ${c.a ? c.a[0] + ' → ' : ''}${c.w ? c.w[0] : 'no work order'}`;
+  $('lcBody').innerHTML = `<div class="lck">${kpis.map(([l, v, s]) => `<div class="stat"><b>${v}</b><span>${l} ${s}</span></div>`).join('')}</div>
+    <div><div class="sect">Timeline · log scale so minutes and weeks both fit</div>${strip}</div>
+    <ol class="lcol">${rows}</ol>`;
+  $('lcwin').hidden = false; $('lcscrim').hidden = false;
+  requestAnimationFrame(() => $('lcwin').classList.add('open'));
+}
+function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = true; $('lcscrim').hidden = true; }
+$('lcClose').onclick = closeLC; $('lcscrim').onclick = closeLC;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('lcwin').hidden) { e.stopImmediatePropagation(); closeLC(); } }, true);
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
 
 // desktop opens in a working state: show the first critical finding in the current building

@@ -10,13 +10,14 @@ Live page (private Claude artifact): https://claude.ai/artifact/JY4YGV7UgUbTcRE6
 - **Hold a room** (yard, electrical, mechanical, data hall) to see a rollup of everything in it. Drill into a circle to see which units drive that number.
 - **Search** finds units, alarm codes, vendors, technicians and findings.
 - Use the **building tiles** to switch buildings. Each tile shows its monthly alarm trend and spend.
+- **Tap any record** (an alarm, WO, PO or invoice in the records window, the Activity tab, or Flow → Recent lifecycles) to follow it alarm → alert → WO → labor → PO → invoice → close. Each step shows its delay, compared with that unit's averages.
 - Use the **month slider / ▶** to watch the plan change month by month.
 
 ## Rebuilding
 ```bash
 pip install duckdb pandas numpy pyarrow
 python build.py           # put data/plan_data.json into the template and write index.html
-python build.py --regen   # regenerate the synthetic dataset and detections first
+python build.py --regen   # regenerate the synthetic dataset, detections and lifecycle chains first
 ```
 
 | Path | What it is |

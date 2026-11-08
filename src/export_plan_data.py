@@ -188,6 +188,52 @@ REC = dict(
     labor=grp(rec_lab.sort_values("rn"), ["ts", "k", "hrs", "d", "wid"]),
 )
 
+
+# ------------------------------------------------------------------ lifecycle chains (alarm -> alert -> WO -> labor -> PO -> invoice)
+ca = df("""SELECT * FROM (SELECT x.position_id id, a.alarm_id, strftime(a.raised_ts, '%Y-%m-%d %H:%M') raised, strftime(a.cleared_ts, '%Y-%m-%d %H:%M') cleared,
+  a.alarm_code code, a.severity sev, a.message msg, row_number() OVER (PARTITION BY x.position_id ORDER BY a.raised_ts DESC) rn
+  FROM bms_alarms a JOIN alarm_xwalk x USING (alarm_id)) WHERE rn <= 10""")
+cw_alarm = df("""SELECT w.source_alarm_id alarm_id, w.wo_id FROM cmms_work_orders w WHERE source_alarm_id IS NOT NULL""")
+cw_free = df("""SELECT * FROM (SELECT position_id id, wo_id, row_number() OVER (PARTITION BY position_id ORDER BY opened_ts DESC) rn
+  FROM cmms_work_orders WHERE source_alarm_id IS NULL) WHERE rn <= 6""")
+alerts_all = df("""SELECT alarm_id, alert_id, strftime(sent_ts, '%Y-%m-%d %H:%M') sent, channel, team, acknowledged ack FROM notify_alerts""").set_index("alarm_id")
+wo_all = df("""SELECT wo_id, wo_type, priority, strftime(opened_ts, '%Y-%m-%d %H:%M') opened, strftime(closed_ts, '%Y-%m-%d %H:%M') closed,
+  strftime(due_ts, '%Y-%m-%d %H:%M') due, status, description FROM cmms_work_orders""").set_index("wo_id")
+act_all = df("""SELECT wo_id, strftime(logged_ts, '%Y-%m-%d %H:%M') ts, technician, labor_hours, note FROM cmms_activities ORDER BY logged_ts""")
+po_all = df("""SELECT wo_id, po_number, strftime(created_ts, '%Y-%m-%d %H:%M') ts, vendor, amount FROM erp_purchase_orders ORDER BY created_ts""")
+inv_all = df("""SELECT po_number, invoice_id, strftime(invoice_date, '%Y-%m-%d') ts, amount, vendor_invoice_no FROM erp_invoices WHERE po_number IS NOT NULL ORDER BY invoice_date""")
+wo_of_alarm = dict(zip(cw_alarm.alarm_id, cw_alarm.wo_id))
+acts_by = {k: g[["ts", "technician", "labor_hours", "note"]].values.tolist() for k, g in act_all.groupby("wo_id")}
+pos_by = {k: g[["po_number", "ts", "vendor", "amount"]].values.tolist() for k, g in po_all.groupby("wo_id")}
+inv_by = {k: g[["invoice_id", "ts", "amount", "vendor_invoice_no"]].values.tolist() for k, g in inv_all.groupby("po_number")}
+def nn(v):
+    if v is None or (isinstance(v, float) and np.isnan(v)) or v is pd.NaT: return None
+    if isinstance(v, (np.floating,)): return round(float(v), 2)
+    if isinstance(v, (np.integer, np.bool_)): return int(v)
+    if isinstance(v, float): return round(v, 2)
+    return v
+def wo_part(wid):
+    if wid is None or wid not in wo_all.index: return None, [], [], []
+    w = wo_all.loc[wid]
+    pos = pos_by.get(wid, [])
+    invs = [[*i, p[0]] for p in pos for i in inv_by.get(p[0], [])]
+    return ([wid, w.wo_type, w.priority, w.opened, nn(w.closed), w.due, w.status, w.description],
+            [[a[0], a[1], nn(a[2]), a[3]] for a in acts_by.get(wid, [])],
+            [[p[0], p[1], p[2], nn(p[3])] for p in pos],
+            [[i[0], i[1], nn(i[2]), i[3], i[4]] for i in invs])
+CH = {}
+for r in ca.itertuples():
+    al = None
+    if r.alarm_id in alerts_all.index:
+        x = alerts_all.loc[r.alarm_id]
+        if isinstance(x, pd.DataFrame): x = x.iloc[0]
+        al = [x.alert_id, x.sent, x.channel, x.team, int(bool(x.ack))]
+    w, act, po_, inv_ = wo_part(wo_of_alarm.get(r.alarm_id))
+    CH.setdefault(r.id, []).append(dict(a=[r.alarm_id, r.raised, nn(r.cleared), r.code, r.sev, r.msg], al=al, w=w, act=act, po=po_, inv=inv_))
+for r in cw_free.itertuples():
+    w, act, po_, inv_ = wo_part(r.wo_id)
+    CH.setdefault(r.id, []).append(dict(a=None, al=None, w=w, act=act, po=po_, inv=inv_))
+
 # ------------------------------------------------------------------ assemble
 def g(frame, pid, col, default=0):
     try:
@@ -220,7 +266,7 @@ for r in pos.itertuples():
     )
 
 data = dict(months=MONTHS, positions=P, feeds=feeds.values.tolist(), names=dict(zip(names.id, names.name)),
-            findings=findings, portfolio=portfolio, bd=BD, rec=REC,
+            findings=findings, portfolio=portfolio, bd=BD, rec=REC, chains=CH,
             asof="2026-10-31")
 json.dump(data, open(OUT, "w"), separators=(",", ":"), default=float)
 print(len(json.dumps(data)) // 1024, "KB;", len(findings), "position findings;", len(portfolio), "portfolio findings")
