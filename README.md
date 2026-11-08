@@ -7,6 +7,9 @@ Live page (private Claude artifact): https://claude.ai/artifact/JY4YGV7UgUbTcRE6
 - **Tap** equipment to open the detail panel. It has four tabs: Overview, Flow, Connections and Activity.
 - **Hold** equipment to burst its data into circles. Slide onto a circle and release to open that data's records.
 - **Slide onto a circle and keep holding** to drill into it (alarm codes, vendors, technicians and so on). Release on an item to open its records filtered to that item.
+- **Hold a room** (yard, electrical, mechanical, data hall) to see a rollup of everything in it. Drill into a circle to see which units drive that number.
+- **Search** finds units, alarm codes, vendors, technicians and findings.
+- Use the **building tiles** to switch buildings. Each tile shows its monthly alarm trend and spend.
 - Use the **month slider / ▶** to watch the plan change month by month.
 
 ## Rebuilding

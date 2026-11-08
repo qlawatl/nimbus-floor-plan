@@ -73,6 +73,27 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 
 .drawing { background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 6px; }
 .drawing svg { display: block; width: 100%; height: auto; max-height: 78vh; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.zone { fill: transparent; cursor: pointer; }
+.zone.holding { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 2; }
+.tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tile { background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 8px 9px 7px; cursor: pointer; display: grid; gap: 4px; text-align: left; min-width: 0; }
+.tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tile .th { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 14px; }
+.tile .th b { font-family: var(--font-mono); font-weight: 600; }
+.tile svg { width: 100%; height: 22px; display: block; }
+.tile .ts { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .ts small { font-weight: 400; color: var(--ink-3); font-size: 10.5px; }
+.badge.warnb { background: var(--warn); color: #0b0b0b; }
+.okb { font-size: 11px; color: var(--ink-3); }
+.search { position: relative; flex: 1 1 280px; max-width: 460px; }
+.search input { width: 100%; height: 38px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--sheet); color: var(--ink); padding: 0 12px; font: 15px var(--font-ui); }
+.search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.results { position: absolute; left: 0; right: 0; top: 42px; z-index: 25; background: var(--sheet); border: 1px solid var(--line-soft); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.2); max-height: 60vh; overflow-y: auto; }
+.qr { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--hair); background: none; padding: 9px 12px; cursor: pointer; }
+.qr:first-child { border-top: 0; }
+.qr:hover, .qr:focus-visible { background: var(--paper); }
+.qr b { font-size: 14px; font-weight: 600; } .qr span { font-size: 12px; color: var(--ink-3); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 9px 14px; border-radius: 20px; font-size: 13px; z-index: 50; }
 .burstwrap { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
 .burstwrap svg { display: block; }
 .burst { pointer-events: none; overflow: visible; }
@@ -199,10 +220,14 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v3 · synthetic data · tap for details · hold to burst · slide + hold a circle to drill in · release to open</div>
+      <div class="sub">v4 · synthetic data · tap a unit for details · hold a unit or a room to burst · slide + hold a circle to drill in</div>
     </div>
-    <div class="seg" id="bldSeg" role="group" aria-label="Building"></div>
+    <div class="search">
+      <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
+      <div class="results" id="qres" hidden></div>
+    </div>
   </header>
+  <div class="tiles" id="tiles" role="group" aria-label="Building"></div>
 
   <div class="main">
     <div class="kpis" id="kpis"></div>
@@ -245,6 +270,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   </aside>
 </div>
 
+<div class="toast" id="toast" hidden role="status"></div>
 <div class="subscrim" id="subscrim" hidden></div>
 <section class="subwin" id="subwin" hidden role="dialog" aria-modal="true" aria-labelledby="swTitle">
   <div class="grab" style="display:block"></div>
@@ -309,6 +335,7 @@ const METRICS = () => S.month == null ? ALLT : MON;
 const PIDS = Object.keys(P);
 const MAX_ALL = { alarms: Math.max(1, ...PIDS.map(ALLT.alarms.get)), spend: Math.max(1, ...PIDS.map(ALLT.spend.get)), work: Math.max(1, ...PIDS.map(ALLT.work.get)) };
 const MAX_MON = { alarms: Math.max(1, ...PIDS.flatMap(id => P[id].ma)), spend: Math.max(1, ...PIDS.flatMap(id => P[id].ms)), work: Math.max(1, ...PIDS.flatMap(id => P[id].mc)) };
+const MAX_MON_POS = MAX_MON;
 const maxOf = m => (S.month == null ? MAX_ALL : MAX_MON)[m];
 function fillFor(id) {
   if (S.metric === 'health') {
@@ -389,19 +416,47 @@ function drawPlan() {
       <rect x="${n.x - 4}" y="${n.y - 4}" width="${n.w + 8}" height="${n.h + 8}" fill="transparent"/>${shape}
       <text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + 3}" font-size="8" font-family="var(--font-mono)" font-weight="600" text-anchor="middle" fill="${ink}">${lab}</text>${mark}</g>`;
   });
-  svg.innerHTML = h + lh + nh;
+  const zh = [['yard', 8, 8, 344, 92], ['elec', 14, 114, 164, 172], ['mech', 182, 114, 164, 172], ['hall', 14, 310, 332, 296]]
+    .map(([z, x, y, w, hh]) => `<rect class="zone" data-zone="Z:${b}:${z}" x="${x}" y="${y}" width="${w}" height="${hh}" rx="2"/>`).join('');
+  svg.innerHTML = h + zh + lh + nh;
   $('tbName').textContent = D.names[b] || b;
 }
+/* ---------- rooms (zones): rollup of the positions inside ---------- */
+const ZONE_OF = { GEN: 'yard', CT: 'yard', SWGR: 'elec', ATS: 'elec', UPS: 'elec', CH: 'mech', PUMP: 'mech', CRAH: 'hall', PDU: 'hall', FIRE: 'hall' };
+const ZNAME = { yard: 'Equipment yard', elec: 'Electrical room', mech: 'Mechanical plant', hall: 'Data hall 1' };
+const ZSHORT = { yard: 'YARD', elec: 'ELEC', mech: 'MECH', hall: 'HALL' };
+const ZONES = {};
+BLD.forEach(b => Object.keys(ZNAME).forEach(z => {
+  const members = PIDS.filter(id => id.startsWith(b + '-') && ZONE_OF[P[id].cls] === z);
+  const sum = f => members.reduce((a, id) => a + (f(P[id]) || 0), 0);
+  const fsAll = members.flatMap(id => (findBy[id] || []).map(f => ({ ...f, title: `${P[id].cls}-${id.split('-').pop()}: ${f.title}` })));
+  ZONES[`Z:${b}:${z}`] = {
+    zone: z, b, members, cls: ZSHORT[z], title: ZNAME[z], sub2: b,
+    k: { alarms: sum(p => p.k.alarms), alarms90: sum(p => p.k.alarms90), alerts: sum(p => p.k.alerts), wos: sum(p => p.k.wos), open: sum(p => p.k.open),
+         spend: sum(p => p.k.spend), spend90: sum(p => p.k.spend90), labor: sum(p => p.k.labor), pm: sum(p => p.k.pm), pmlate: sum(p => p.k.pmlate) },
+    flow: { 'wo>po': { amt: sum(p => (p.flow['wo>po'] || {}).amt), n: sum(p => (p.flow['wo>po'] || {}).n) } },
+    ma: M.map((_, i) => sum(p => p.ma[i])), ms: M.map((_, i) => sum(p => p.ms[i])), mc: M.map((_, i) => sum(p => p.mc[i])),
+    findings: fsAll.sort((a, c) => SEVR[c.sev] - SEVR[a.sev]), worst: fsAll.reduce((m, f) => Math.max(m, SEVR[f.sev]), 0),
+  };
+}));
+const ZL = Object.values(ZONES);
+const ZMAX = { alarms: Math.max(1, ...ZL.map(z => z.k.alarms)), alerts: Math.max(1, ...ZL.map(z => z.k.alerts)), wos: Math.max(1, ...ZL.map(z => z.k.wos)),
+  spend: Math.max(1, ...ZL.map(z => z.k.spend)), labor: Math.max(1, ...ZL.map(z => z.k.labor)), po: Math.max(1, ...ZL.map(z => z.flow['wo>po'].amt)) };
+const ZMAXM = { alarms: Math.max(1, ...ZL.flatMap(z => z.ma)), spend: Math.max(1, ...ZL.flatMap(z => z.ms)), work: Math.max(1, ...ZL.flatMap(z => z.mc)) };
+const isZone = id => id.startsWith('Z:');
+const titleOf = id => isZone(id) ? ZONES[id].title : `${P[id].cls}-${id.split('-').pop()}`;
+
 /* ---------- press-and-hold burst; release to close ---------- */
 const HOLD_MS = 260;
 let hold = null; // { id, timer, open, el }
-const maxK = {};
-['alarms', 'alerts', 'wos', 'spend', 'labor'].forEach(k => maxK[k] = Math.max(1, ...Object.values(P).map(p => p.k[k] || 0)));
-maxK.po = Math.max(1, ...Object.values(P).map(p => (p.flow['wo>po'] || {}).amt || 0));
+const MAXK_POS = {};
+['alarms', 'alerts', 'wos', 'spend', 'labor'].forEach(k => MAXK_POS[k] = Math.max(1, ...Object.values(P).map(p => p.k[k] || 0)));
+MAXK_POS.po = Math.max(1, ...Object.values(P).map(p => (p.flow['wo>po'] || {}).amt || 0));
 const rFor = (v, mx) => 17 + 9 * Math.sqrt(Math.max(0, v) / mx);
 function openBurst(id) {
   const W = document.documentElement.clientWidth || innerWidth, H = (window.visualViewport && visualViewport.height) || innerHeight, mn = Math.min(W, H);
-  const k = P[id].k, fl = P[id].flow, fs = findBy[id] || [], w = worst(id), p = P[id];
+  const Z = isZone(id), p = Z ? ZONES[id] : P[id], k = p.k, fl = p.flow, fs = Z ? p.findings : (findBy[id] || []), w = Z ? p.worst : worst(id);
+  const maxK = Z ? ZMAX : MAXK_POS, MAX_MON = Z ? ZMAXM : MAX_MON_POS;
   const base = Math.max(28, Math.min(42, mn * 0.075)), grow = 0.8;   // readable at base size, grows with occurrences
   const rOf = (v, mx) => base * (1 + grow * Math.sqrt(Math.max(0, v) / mx));
   const poAmt = (fl['wo>po'] || {}).amt || 0, mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
@@ -416,16 +471,16 @@ function openBurst(id) {
                : { v: usd(p.ms[mo]), c: 'invoiced', sub: ml, r: rOf(p.ms[mo], MAX_MON.spend), f: 'var(--seq2)', go: 'overview', name: 'Spend → Overview', m: 'inv' },
     { v: num(k.labor), c: 'labor hrs', sub: k.pm ? `${Math.round(100 * k.pmlate / k.pm)}% PM late` : '', r: rOf(k.labor, maxK.labor), f: 'var(--seq1)', go: 'events', name: 'Labor → Activity', m: 'labor' },
     { v: fs.length ? (w === 3 ? '! ' : w === 2 ? '▲ ' : '') + fs.length : '0', c: fs.length ? 'findings' : 'no findings',
-      sub: fs.length ? (fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Findings → Overview', m: 'findings',
+      sub: fs.length ? (Z ? `${new Set(fs.map(f => f.id)).size} units` : fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Findings → Overview', m: 'findings',
       r: base * (fs.length ? 1.45 : 1), f: w === 3 ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : w === 2 ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq0)' },
   ];
-  const ups = up[id] || [], downs = down[id] || [];
+  const ups = Z ? [] : up[id] || [], downs = Z ? [] : down[id] || [];
   const maxR = Math.max(...sats.map(s => s.r)), rC = base * 1.25;
   const topBand = ups.length ? 150 : 50, botBand = downs.length ? 110 : 30;
   const cx = W / 2, cy = topBand + (H - topBand - botBand) / 2;
   const rx = Math.min(W / 2 - maxR - 6, 280), ry = Math.max(rC + maxR * .6, Math.min(rx * 1.7, (H - topBand - botBand) / 2 - maxR - 4));
   // where the finger is: start point for the explosion
-  const nEl = document.querySelector(`.node[data-id="${id}"] .shape`), nb = nEl ? nEl.getBoundingClientRect() : { left: cx, top: cy, width: 0, height: 0 };
+  const nEl = document.querySelector(Z ? `.zone[data-zone="${id}"]` : `.node[data-id="${id}"] .shape`), nb = nEl ? nEl.getBoundingClientRect() : { left: cx, top: cy, width: 0, height: 0 };
   const sx = nb.left + nb.width / 2, sy = nb.top + nb.height / 2;
   const hits = [];
   let h = `<rect class="veil" x="-50" y="-50" width="${W + 100}" height="${H + 400}"/>
@@ -457,10 +512,10 @@ function openBurst(id) {
   };
   row(ups, topBand - 54, '↑', 'FEEDS THIS UNIT');
   row(downs, H - botBand + 52, '↓', 'FED BY THIS UNIT');
-  hits.push({ x: cx, y: cy, r: rC, id, tab: 'overview', name: 'Details → Overview', kind: 'pos' });
+  hits.push(Z ? { x: cx, y: cy, r: rC, id, name: 'close', kind: 'none' } : { x: cx, y: cy, r: rC, id, tab: 'overview', name: 'Details → Overview', kind: 'pos' });
   h += satG(hits.length - 1, cx, cy, `<circle r="${rC}" fill="var(--accent)" stroke="var(--sheet)" stroke-width="3"/>
-    <text y="-3" text-anchor="middle" font-size="${Math.round(rC * .36)}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${P[id].cls}-${id.split('-').pop()}</text>
-    <text y="${Math.round(rC * .36)}" text-anchor="middle" font-size="${Math.round(rC * .26)}" fill="#fff" opacity=".85">${esc(id.slice(0, 5))}${mo != null ? ' · ' + ml : ''}</text>`, 0);
+    <text y="-3" text-anchor="middle" font-size="${Math.round(rC * .36)}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${Z ? p.cls : titleOf(id)}</text>
+    <text y="${Math.round(rC * .36)}" text-anchor="middle" font-size="${Math.round(rC * .26)}" fill="#fff" opacity=".85">${esc(Z ? `${p.b} · ${p.members.length} units` : id.slice(0, 5))}${mo != null ? ' · ' + ml : ''}</text>`, 0);
   const wrap = document.createElement('div');
   wrap.className = 'burstwrap';
   wrap.innerHTML = `<svg class="burst" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${h}</g><g class="l2"></g></svg>`;
@@ -516,7 +571,19 @@ const MTITLE = { alarms: 'Alarms', alerts: 'Alerts', wos: 'Work orders', po: 'Pu
 const MSHORT = { alarms: 'alarms', alerts: 'alerts', wos: 'work orders', po: 'POs', inv: 'invoiced', labor: 'labor hrs', findings: 'findings' };
 const MTAB = { alarms: 'events', alerts: 'events', labor: 'events', wos: 'flow', po: 'flow', inv: 'overview', findings: 'overview' };
 const sevFill = s => s === 'critical' ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : s === 'major' ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq1)';
+function drillZone(zid, m) {
+  const z = ZONES[zid], mo = S.month;
+  const val = id => { const p = P[id], k = p.k; return {
+    alarms: mo == null ? k.alarms : p.ma[mo], alerts: k.alerts, wos: mo == null ? k.wos : p.mc[mo], po: (p.flow['wo>po'] || {}).amt || 0,
+    inv: mo == null ? k.spend : p.ms[mo], labor: k.labor, findings: worst(id) }[m]; };
+  const fmt = v => (m === 'po' || m === 'inv') ? usd(v) : m === 'labor' ? num(v) + ' h' : m === 'findings' ? (v === 3 ? '!' : v === 2 ? '▲' : v === 1 ? 'i' : '–') : num(v);
+  return z.members.filter(id => m !== 'findings' || worst(id) > 0).map(id => ({ key: id, label: titleOf(id), v: val(id), vs: fmt(val(id)),
+      sub: m === 'findings' ? (findBy[id] || [])[0].title : m === 'wos' ? `${P[id].k.open} open` : m === 'alarms' ? `${P[id].k.crit} critical` : '',
+      f: worst(id) === 3 ? sevFill('critical') : worst(id) === 2 ? sevFill('major') : 'var(--seq1)', kind: 'pos' }))
+    .sort((a, c) => c.v - a.v);
+}
 function drill(id, m) {
+  if (isZone(id)) return drillZone(id, m);
   const bd = (D.bd[m] || {})[id] || [], short = k => k.replace(P[id].cls + '_', '').replace(/_/g, ' ');
   switch (m) {
     case 'alarms': return bd.map(([k, n, sev, orph]) => ({ key: k, label: short(k), v: n, vs: num(n), sub: sev + (orph ? ` · ${orph} no WO` : ''), f: sevFill(sev) }));
@@ -555,18 +622,18 @@ function openLevel2(b, parent) {
     const a = -Math.PI / 2 + i * 2 * Math.PI / Math.max(items.length, 1), x = cx + Math.cos(a) * (items.length === 1 ? 0 : rx), y = cy + Math.sin(a) * (items.length === 1 ? ry : ry);
     const r = rs[i], f1 = Math.round(Math.max(13, r * .38)), f2 = Math.max(10, Math.round(f1 * .7)), f3 = Math.max(9, Math.round(f1 * .6));
     const lines = wrap2(it.label, Math.max(8, Math.floor(r * 1.6 / (f2 * .55))));
-    hits.push({ x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
+    hits.push(it.kind === 'pos' ? { x, y, r, id: it.key, tab: MTAB[m], name: `${it.label} → ${MTITLE[m]}`, kind: 'pos' } : { x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
     h += `<line class="tether" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
     h += satG(hits.length - 1, x, y, `<circle r="${r}" fill="${it.f}" stroke="var(--line)" stroke-width="1.2"/>
       <text y="${-f2 * (lines.length - 1) * .5 - 2}" text-anchor="middle" font-size="${f1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(it.vs)}</text>
       ${lines.map((l, j) => `<text y="${f2 + 1 + j * (f2 + 1) - f2 * (lines.length - 1) * .5}" text-anchor="middle" font-size="${f2}" fill="var(--ink)">${esc(l)}</text>`).join('')}
       <text y="${f2 + 1 + lines.length * (f2 + 1) - f2 * (lines.length - 1) * .5 + 1}" text-anchor="middle" font-size="${f3}" fill="var(--ink-3)">${esc(it.sub)}</text>`, i * 30);
   });
-  hits.push({ x: cx, y: cy, r: rC, id, m, item: null, name: `all ${MTITLE[m].toLowerCase()}`, kind: 'sub' });
+  hits.push(isZone(id) ? { x: cx, y: cy, r: rC, id, name: 'close', kind: 'none' } : { x: cx, y: cy, r: rC, id, m, item: null, name: `all ${MTITLE[m].toLowerCase()}`, kind: 'sub' });
   h += satG(hits.length - 1, cx, cy, `<circle r="${rC}" fill="var(--accent)" stroke="var(--sheet)" stroke-width="3"/>
     <text y="${-rC * .1}" text-anchor="middle" font-size="${Math.max(16, Math.round(rC * .3))}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${esc(parent.vs || '')}</text>
     <text y="${rC * .22}" text-anchor="middle" font-size="${Math.max(12, Math.round(rC * .2))}" font-weight="600" fill="#fff">${esc(MSHORT[m])}</text>
-    <text y="${rC * .5}" text-anchor="middle" font-size="${Math.max(10, Math.round(rC * .16))}" fill="#fff" opacity=".85">${P[id].cls}-${id.split('-').pop()}${rest > 0 ? ` · +${rest} more` : ''}</text>`, 0);
+    <text y="${rC * .5}" text-anchor="middle" font-size="${Math.max(10, Math.round(rC * .16))}" fill="#fff" opacity=".85">${esc(isZone(id) ? ZONES[id].cls + ' · ' + ZONES[id].b : titleOf(id))}${rest > 0 ? ` · +${rest} more` : ''}</text>`, 0);
   if (!items.length) h += `<text x="${cx}" y="${cy + rC + 30}" text-anchor="middle" font-size="13" fill="var(--ink-3)">No ${MTITLE[m].toLowerCase()} recorded</text>`;
   const l2 = b.svg.querySelector('.l2');
   l2.innerHTML = h;
@@ -599,9 +666,19 @@ function recRow(m, r, hit) {
   return '';
 }
 function renderSub() {
-  const { id, m, item } = SW, p = P[id], items = drill(id, m), total = items.reduce((a, i) => a + i.v, 0), mx = Math.max(1, ...items.map(i => i.v));
-  $('swTitle').textContent = `${p.cls}-${id.split('-').pop()} · ${MTITLE[m]}`;
-  $('swCrumb').textContent = `${id} · ${p.system} · all time` + (item ? ` · filtered to ${item}` : '');
+  const { id, m, item } = SW, Z = isZone(id), p = Z ? ZONES[id] : P[id], items = drill(id, m), mx = Math.max(1, ...items.map(i => i.v));
+  $('swTitle').textContent = `${titleOf(id)} · ${MTITLE[m]}`;
+  $('swCrumb').textContent = Z ? `${p.b} · ${p.members.length} units · ${S.month != null && ['alarms', 'wos', 'inv'].includes(m) ? mlabel(M[S.month]) : 'all time'} · tap a unit to open it`
+    : `${id} · ${p.system} · all time` + (item ? ` · filtered to ${item}` : '');
+  $('swPanel').hidden = Z;
+  if (Z) {
+    $('swBody').innerHTML = `<div class="sect">By unit</div><div class="bars">${items.map(i => `
+      <button type="button" class="brow" data-go="${i.key}">
+        <span class="bl">${esc(i.label)}<small>${esc(i.sub)}</small></span>
+        <span class="bt"><span style="width:${Math.max(2, 100 * i.v / mx)}%;background:${i.f}"></span></span>
+        <span class="bv mono">${esc(i.vs)}</span></button>`).join('') || '<div class="note">Nothing recorded.</div>'}</div>`;
+    return;
+  }
   let h = '';
   if (m === 'findings') {
     h += (findBy[id] || []).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('') || '<div class="note">No findings at this position.</div>';
@@ -619,14 +696,15 @@ function renderSub() {
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swBody').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
 $('swClose').onclick = closeSub;
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
 $('plan').addEventListener('pointerdown', e => {
-  const n = e.target.closest('.node'); if (!n || e.button > 0) return;
-  const id = n.dataset.id;
+  if (e.button > 0) return;
+  const n = e.target.closest('.node') || e.target.closest('.zone'); if (!n) return;
+  const id = n.dataset.id || n.dataset.zone;
   n.classList.add('holding');
   hold = { id, node: n, open: null, x: e.clientX, y: e.clientY,
     timer: setTimeout(() => { hold.open = openBurst(id); }, HOLD_MS) };
@@ -640,8 +718,9 @@ const endHold = (e, cancelled) => {
     clearTimeout(h.open.dwell);
     closeBurst(h.open.g);
     if (target && target.kind === 'sub') openSub(target.id, target.m, target.item || null);
-    else if (target) { S.tab = target.tab; select(target.id); }
-  } else if (!cancelled) select(h.id);
+    else if (target && target.kind === 'pos') { S.tab = target.tab; select(target.id); }
+  } else if (!cancelled && !isZone(h.id)) select(h.id);
+  else if (!cancelled) toast('Hold a room to see everything inside it');
 };
 window.addEventListener('pointerup', e => endHold(e, false));
 window.addEventListener('pointercancel', e => endHold(e, true));
@@ -652,7 +731,7 @@ window.addEventListener('pointermove', e => {
 });
 // once the burst is open, finger movement slides between circles instead of scrolling the page
 $('plan').addEventListener('touchmove', e => { if (hold && hold.open) e.preventDefault(); }, { passive: false });
-$('plan').addEventListener('contextmenu', e => { if (e.target.closest('.node')) e.preventDefault(); });
+$('plan').addEventListener('contextmenu', e => { if (e.target.closest('.node, .zone')) e.preventDefault(); });
 $('plan').addEventListener('keydown', e => { const g = e.target.closest('.node'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(g.dataset.id); } });
 
 /* ---------- controls ---------- */
@@ -662,11 +741,24 @@ function seg(el, items, cur, onPick) {
 }
 const bldIds = b => Object.keys(P).filter(id => id.startsWith(b + '-'));
 function renderControls() {
-  seg($('bldSeg'), BLD.map(b => { const c = bldIds(b).filter(id => worst(id) === 3).length; return [b, b, c ? `<span class="badge" aria-label="${c} critical">${c}</span>` : '']; }), S.b,
-    v => { S.b = v; if (S.sel && !S.sel.startsWith(v)) closePanel(true); try { history.replaceState(null, '', '#' + v); } catch (e) {} renderAll(); });
+  renderTiles();
   seg($('metricSeg'), Object.entries(METRICS()).map(([k, m]) => [k, m.label]), S.metric, v => { S.metric = v; renderAll(); });
   seg($('linkSeg'), [['off', 'Off'], ['power', 'Power'], ['cool', 'Cooling'], ['all', 'All']], S.links, v => { S.links = v; renderAll(); });
 }
+function goBuilding(v) { S.b = v; if (S.sel && !S.sel.startsWith(v)) closePanel(true); try { history.replaceState(null, '', '#' + v); } catch (e) {} renderAll(); }
+function renderTiles() {
+  $('tiles').innerHTML = BLD.map(b => {
+    const ids = bldIds(b), c = ids.filter(id => worst(id) === 3).length, wn = ids.filter(id => worst(id) === 2).length;
+    const series = M.map((_, i) => ids.reduce((a, id) => a + P[id].ma[i], 0)), mx = Math.max(1, ...series), bw = 100 / series.length;
+    const spend = S.month == null ? ids.reduce((a, id) => a + P[id].k.spend, 0) : ids.reduce((a, id) => a + P[id].ms[S.month], 0);
+    const bars = series.map((v, i) => `<rect x="${i * bw + .4}" y="${22 - 20 * v / mx}" width="${bw - .8}" height="${Math.max(.5, 20 * v / mx)}" fill="var(${S.month === i ? '--accent' : b === S.b ? '--seq3' : '--seq2'})"/>`).join('');
+    return `<button type="button" class="tile" aria-pressed="${b === S.b}" data-b="${b}">
+      <span class="th"><b>${b}</b>${c ? `<span class="badge" aria-label="${c} critical">! ${c}</span>` : wn ? `<span class="badge warnb">▲ ${wn}</span>` : '<span class="okb">ok</span>'}</span>
+      <svg viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+      <span class="ts mono">${usd(spend)}<small> ${S.month == null ? 'spend' : mlabel(M[S.month])}</small></span></button>`;
+  }).join('');
+}
+$('tiles').addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) goBuilding(t.dataset.b); });
 function renderKpis() {
   const ids = bldIds(S.b), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
   const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
@@ -880,6 +972,36 @@ $('playBtn').onclick = () => {
   $('playBtn').textContent = '❚❚'; $('playBtn').setAttribute('aria-label', 'Pause');
   playTimer = setInterval(() => { m++; if (m >= M.length) return stopPlay(); setMonth(m); }, 650);
 };
+const IDX = [];
+PIDS.forEach(id => {
+  const p = P[id], t = titleOf(id);
+  IDX.push({ s: `${id} ${t} ${t.replace('-', ' ')} ${CLS[p.cls]} ${p.asset.tag} ${p.asset.mfr} ${p.asset.model}`.toLowerCase(), label: `${t} · ${id.slice(0, 5)}`, sub: `${CLS[p.cls]} · ${p.asset.mfr} ${p.asset.model}`, id, rank: 0 });
+  (D.bd.alarms[id] || []).forEach(([k, n, sev]) => IDX.push({ s: k.toLowerCase().replace(/_/g, ' ') + ' ' + k.toLowerCase(), label: `${k} at ${t}`, sub: `${n} alarms · ${sev} · ${id.slice(0, 5)}`, id, m: 'alarms', key: k, rank: 1, w: n }));
+  (D.bd.po[id] || []).forEach(([k, amt, n]) => IDX.push({ s: k.toLowerCase(), label: `${k} · ${t}`, sub: `${usd(amt)} in ${n} POs · ${id.slice(0, 5)}`, id, m: 'po', key: k, rank: 2, w: amt }));
+  (D.bd.labor[id] || []).forEach(([k, hrs, n]) => IDX.push({ s: k.toLowerCase(), label: `${k} · ${t}`, sub: `${num(hrs)} h over ${n} entries · ${id.slice(0, 5)}`, id, m: 'labor', key: k, rank: 3, w: hrs }));
+  (findBy[id] || []).forEach(f => IDX.push({ s: (f.title + ' ' + f.kind).toLowerCase(), label: `${f.title} · ${t}`, sub: `${f.sev} · ${id.slice(0, 5)}`, id, m: 'findings', rank: 0.5, w: SEVR[f.sev] }));
+});
+function runSearch() {
+  const q = $('q').value.trim().toLowerCase(), box = $('qres');
+  if (q.length < 2) { box.hidden = true; return; }
+  const terms = q.split(/\s+/);
+  const hits = IDX.filter(r => terms.every(x => r.s.includes(x))).sort((a, c) => a.rank - c.rank || (c.w || 0) - (a.w || 0)).slice(0, 12);
+  box.innerHTML = hits.length ? hits.map((r, i) => `<button type="button" class="qr" data-i="${IDX.indexOf(r)}"><b>${esc(r.label)}</b><span>${esc(r.sub)}</span></button>`).join('')
+    : `<div class="note" style="padding:10px">No match for “${esc(q)}”.</div>`;
+  box.hidden = false;
+}
+$('q').addEventListener('input', runSearch);
+$('q').addEventListener('focus', runSearch);
+$('q').addEventListener('keydown', e => { if (e.key === 'Escape') { $('q').value = ''; $('qres').hidden = true; } if (e.key === 'Enter') { const f = $('qres').querySelector('.qr'); if (f) f.click(); } });
+$('qres').addEventListener('click', e => {
+  const b = e.target.closest('.qr'); if (!b) return;
+  const r = IDX[+b.dataset.i]; $('qres').hidden = true; $('q').blur();
+  if (!r.m) { S.tab = 'overview'; select(r.id); }
+  else { if (!r.id.startsWith(S.b)) goBuilding(r.id.slice(0, 5)); openSub(r.id, r.m, r.key || null); }
+});
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.search')) $('qres').hidden = true; });
+let toastT;
+function toast(msg) { const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 1800); }
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
 
 // desktop opens in a working state: show the first critical finding in the current building
