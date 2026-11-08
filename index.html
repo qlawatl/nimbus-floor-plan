@@ -121,6 +121,8 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .brow .bt { height: 10px; background: var(--hair); border-radius: 5px; overflow: hidden; }
 .brow .bt span { display: block; height: 100%; border-radius: 5px; border: 1px solid var(--line-soft); }
 .brow .bv { font-size: 13px; font-weight: 600; }
+.backbtn { border: 0; background: none; color: var(--accent); font: 600 14px var(--font-ui); padding: 0 0 4px; cursor: pointer; display: block; }
+.burst .back text { font-family: var(--font-ui); }
 .tl li.lc { cursor: pointer; } .tl li.lc:hover { background: var(--paper); }
 .tl li.lc .amt::after { content: ' ›'; color: var(--ink-3); }
 .lcl { display: grid; gap: 4px; }
@@ -243,7 +245,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v5 · synthetic data · tap a unit for details · hold a unit or room to burst · tap any record to follow its lifecycle</div>
+      <div class="sub">v5.1 · synthetic data · tap a unit for details · hold a unit or room to burst · ‹ Back steps up one level · tap any record to follow its lifecycle</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -297,13 +299,13 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 <div class="subscrim" id="lcscrim" hidden style="z-index:44"></div>
 <section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:45">
   <div class="grab" style="display:block"></div>
-  <div class="ph"><div class="ph-top"><div><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div><button class="x" id="lcClose" aria-label="Close">×</button></div></div>
+  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="lcBack">‹ Back</button><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div><button class="x" id="lcClose" aria-label="Close">×</button></div></div>
   <div class="pb" id="lcBody"></div>
 </section>
 <div class="subscrim" id="subscrim" hidden></div>
 <section class="subwin" id="subwin" hidden role="dialog" aria-modal="true" aria-labelledby="swTitle">
   <div class="grab" style="display:block"></div>
-  <div class="ph"><div class="ph-top"><div><h3 id="swTitle"></h3><div class="crumb" id="swCrumb"></div></div><button class="x" id="swClose" aria-label="Close">×</button></div></div>
+  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="swBack" hidden>‹ Back to burst</button><h3 id="swTitle"></h3><div class="crumb" id="swCrumb"></div></div><button class="x" id="swClose" aria-label="Close">×</button></div></div>
   <div class="pb" id="swBody"></div>
   <div class="foot"><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
 </section>
@@ -558,7 +560,7 @@ function openBurst(id) {
   };
   requestAnimationFrame(go); setTimeout(go, 40);
   if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
-  return { g: wrap, svg: g, hits, cur: null, level: 1, W, H, base, id };
+  return { g: wrap, svg: g, hits, hits1: hits, cur: null, level: 1, W, H, base, id };
 }
 function closeBurst(wrap) {
   if (!wrap) return;
@@ -568,7 +570,15 @@ function closeBurst(wrap) {
   setTimeout(() => wrap.remove(), 200);
 }
 const HINT1 = 'Slide onto a circle · hold to drill in · release to open';
-const DWELL_MS = 450;
+const DWELL_MS = 450, BACK_MS = 380;
+function dwellRing(s, r0, ms) {
+  if (!s) return;
+  const r = r0 + 7, c = 2 * Math.PI * r, ring = document.createElementNS(SVGNS, 'circle');
+  ring.setAttribute('class', 'dwell'); ring.setAttribute('r', r);
+  ring.style.strokeDasharray = c; ring.style.strokeDashoffset = c;
+  s.appendChild(ring); ring.getBoundingClientRect();
+  ring.style.transition = `stroke-dashoffset ${ms}ms linear`; ring.style.strokeDashoffset = 0;
+}
 function hoverBurst(b, e) {
   let best = null, bd = Infinity;
   b.hits.forEach((h, i) => { const d = Math.hypot(e.clientX - h.x, e.clientY - h.y); if (d <= h.r + 8 && d < bd) { bd = d; best = i; } });
@@ -581,14 +591,14 @@ function hoverBurst(b, e) {
   const hint = b.svg.querySelector('.hint');
   if (!b.cur) hint.textContent = b.level === 1 ? HINT1 : 'Slide onto a circle · release to open its records';
   else if (b.cur.kind === 'pos') hint.textContent = 'Release: ' + b.cur.name;
-  else if (b.level === 1) {
+  else if (b.cur.kind === 'back') {
+    hint.textContent = 'Hold or release here to go back a level';
+    const target = b.cur;
+    dwellRing(layer.querySelector(`.sat[data-i="${best}"]`), b.cur.r, BACK_MS);
+    b.dwell = setTimeout(() => { if (b.cur === target && b.level === 2) levelUp(b); }, BACK_MS);
+  } else if (b.level === 1) {
     hint.textContent = `Hold to drill into ${b.cur.name} · release to open`;
-    const s = layer.querySelector(`.sat[data-i="${best}"]`), r = b.cur.r + 7, c = 2 * Math.PI * r;
-    const ring = document.createElementNS(SVGNS, 'circle');
-    ring.setAttribute('class', 'dwell'); ring.setAttribute('r', r);
-    ring.style.strokeDasharray = c; ring.style.strokeDashoffset = c;
-    s.appendChild(ring); ring.getBoundingClientRect();
-    ring.style.transition = `stroke-dashoffset ${DWELL_MS}ms linear`; ring.style.strokeDashoffset = 0;
+    dwellRing(layer.querySelector(`.sat[data-i="${best}"]`), b.cur.r, DWELL_MS);
     const target = b.cur;
     b.dwell = setTimeout(() => { if (b.cur === target && b.level === 1) openLevel2(b, target); }, DWELL_MS);
   } else hint.textContent = 'Release to open: ' + b.cur.name;
@@ -669,14 +679,44 @@ function openLevel2(b, parent) {
   l2.getBoundingClientRect();
   const go = () => { if (l2.dataset.on) return; l2.dataset.on = 1; l2.querySelectorAll('.sat').forEach(s => { const [x, y] = s.dataset.to.split(',').map(Number); s.style.opacity = 1; s.style.transform = `translate(${x}px,${y}px) scale(1)`; }); };
   requestAnimationFrame(go); setTimeout(go, 40);
+  const rB = Math.max(26, base * .85), bx = rB + 14, by = rB + 44;
+  hits.push({ x: bx, y: by, r: rB, id, name: 'back', kind: 'back' });
+  l2.insertAdjacentHTML('beforeend', `<g class="sat back" data-i="${hits.length - 1}" data-to="${bx},${by}" style="opacity:1;transform:translate(${bx}px,${by}px)">
+    <circle r="${rB}" fill="var(--sheet)" stroke="var(--accent)" stroke-width="2"/>
+    <text y="-1" text-anchor="middle" font-size="${Math.round(rB * .62)}" font-weight="700" fill="var(--accent)">‹</text>
+    <text y="${Math.round(rB * .5)}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--accent)">Back</text></g>`);
   b.hits = hits;
-  b.svg.querySelector('.hint').textContent = 'Slide onto a circle · release to open its records';
+  b.svg.querySelector('.hint').textContent = HINT2;
+}
+const HINT2 = 'Slide onto a circle · release to open · ‹ Back for previous level';
+function levelUp(b) {
+  const l2 = b.svg.querySelector('.l2');
+  l2.innerHTML = ''; delete l2.dataset.on;
+  b.svg.classList.remove('deep');
+  b.svg.querySelectorAll('.sat.hot').forEach(s => s.classList.remove('hot'));
+  b.svg.querySelectorAll('.dwell').forEach(x => x.remove());
+  b.hits = b.hits1; b.level = 1; b.curI = undefined; b.cur = null; b.parent = null;
+  b.svg.querySelector('.hint').textContent = b.pinned ? 'Tap a circle · hold to drill in · tap outside to close' : HINT1;
+  if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+}
+// keep the burst on screen so taps work after the finger lifts
+function pinBurst(b) {
+  if (b.pinned) return;
+  b.pinned = true;
+  b.g.style.pointerEvents = 'auto';
+  b.g.addEventListener('pointerdown', e => {
+    hold = { id: b.id, node: null, open: b, x: e.clientX, y: e.clientY, pinned: true };
+    b.curI = undefined; hoverBurst(b, e);
+  });
+  b.g.addEventListener('touchmove', e => { if (hold && hold.open === b) e.preventDefault(); }, { passive: false });
+  b.svg.querySelector('.hint').textContent = b.level === 1 ? 'Tap a circle · hold to drill in · tap outside to close' : 'Tap a circle · ‹ Back for previous level · tap outside to close';
 }
 
 /* ---------- sub-data window ---------- */
 const SW = { id: null, m: null, item: null };
-function openSub(id, m, item) {
-  Object.assign(SW, { id, m, item });
+function openSub(id, m, item, from) {
+  Object.assign(SW, { id, m, item, from: from || null });
+  $('swBack').hidden = !SW.from;
   renderSub();
   $('subwin').hidden = false; $('subscrim').hidden = false;
   requestAnimationFrame(() => $('subwin').classList.add('open'));
@@ -742,12 +782,15 @@ $('plan').addEventListener('pointerdown', e => {
 const endHold = (e, cancelled) => {
   if (!hold) return;
   const h = hold; hold = null;
-  clearTimeout(h.timer); h.node.classList.remove('holding');
+  clearTimeout(h.timer); if (h.node) h.node.classList.remove('holding');
   if (h.open) {
-    const target = !cancelled && h.open.cur;
-    clearTimeout(h.open.dwell);
-    closeBurst(h.open.g);
-    if (target && target.kind === 'sub') openSub(target.id, target.m, target.item || null);
+    const b = h.open, target = !cancelled && b.cur;
+    clearTimeout(b.dwell);
+    if (target && target.kind === 'back') { if (b.level === 2) levelUp(b); pinBurst(b); return; }
+    if (cancelled && b.pinned) return;
+    closeBurst(b.g);
+    const from = { id: b.id, level: b.level, m: b.parent ? b.parent.m : null };
+    if (target && target.kind === 'sub') openSub(target.id, target.m, target.item || null, from);
     else if (target && target.kind === 'pos') { S.tab = target.tab; select(target.id); }
   } else if (!cancelled && !isZone(h.id)) select(h.id);
   else if (!cancelled) toast('Hold a room to see everything inside it');
@@ -1119,6 +1162,7 @@ function openLC(pid, ent) {
       <span class="lct">${esc(x.title)}${x.amt != null ? ` · <span class="mono">${usd(x.amt)}</span>` : ''}</span>
       ${x.d ? `<span class="lcx">${esc(x.d)}</span>` : ''}${x.t ? `<span class="lcw mono">${when}</span>` : ''}</span></li>`;
   }).join('');
+  $('lcBack').textContent = !$('subwin').hidden ? '‹ Back to records' : '‹ Back to details';
   $('lcTitle').textContent = `${titleOf(pid)} · lifecycle`;
   $('lcCrumb').textContent = `${pid} · ${c.a ? c.a[0] + ' → ' : ''}${c.w ? c.w[0] : 'no work order'}`;
   $('lcBody').innerHTML = `<div class="lck">${kpis.map(([l, v, s]) => `<div class="stat"><b>${v}</b><span>${l} ${s}</span></div>`).join('')}</div>
@@ -1128,7 +1172,12 @@ function openLC(pid, ent) {
   requestAnimationFrame(() => $('lcwin').classList.add('open'));
 }
 function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = true; $('lcscrim').hidden = true; }
-$('lcClose').onclick = closeLC; $('lcscrim').onclick = closeLC;
+$('lcClose').onclick = closeLC; $('lcscrim').onclick = closeLC; $('lcBack').onclick = closeLC;
+$('swBack').onclick = () => {
+  const f = SW.from; closeSub(); if (!f) return;
+  const b = openBurst(f.id); pinBurst(b);
+  if (f.level === 2 && f.m) { const ph = b.hits.find(x => x.m === f.m); if (ph) setTimeout(() => { openLevel2(b, ph); b.svg.querySelector('.hint').textContent = 'Tap a circle · ‹ Back for previous level · tap outside to close'; }, 120); }
+};
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('lcwin').hidden) { e.stopImmediatePropagation(); closeLC(); } }, true);
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
 

@@ -10,6 +10,7 @@ Live page (private Claude artifact): https://claude.ai/artifact/JY4YGV7UgUbTcRE6
 - **Hold a room** (yard, electrical, mechanical, data hall) to see a rollup of everything in it. Drill into a circle to see which units drive that number.
 - **Search** finds units, alarm codes, vendors, technicians and findings.
 - Use the **building tiles** to switch buildings. Each tile shows its monthly alarm trend and spend.
+- **‹ Back steps up one level.** In a drill-down, slide onto the Back circle and hold it, or release on it, to return to the previous level. Releasing on it leaves the burst on screen so you can tap circles directly. The records window's **‹ Back to burst** reopens the level you came from, and a lifecycle's **‹ Back** returns you to the records or details it was opened from.
 - **Tap any record** (an alarm, WO, PO or invoice in the records window, the Activity tab, or Flow → Recent lifecycles) to follow it alarm → alert → WO → labor → PO → invoice → close. Each step shows its delay, compared with that unit's averages.
 - Use the **month slider / ▶** to watch the plan change month by month.
 
