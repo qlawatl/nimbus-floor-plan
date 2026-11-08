@@ -2,6 +2,12 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v6.2 — 2026-11-08 · branch `release/v6.2`
+- Removed the stray dotted line that ran from the parent bubble (or your finger) to the center.
+- **Line thickness shows weight:** each line from the center is 1.5–11.5 px, scaled to its bubble's share of the largest on that screen.
+- **Triple-tap anywhere** to go back to the main page. It closes the bubbles, windows and panel, and scrolls to the top. The third tap doesn't trigger anything else.
+- **Scrolling works in the detail windows** (details, records, lifecycle, equipment panel). The cause was flex layout without `min-height: 0`, which stopped the inner list from scrolling.
+
 ## v6.1 — 2026-11-08 · branch `release/v6.1`
 - The lifecycle and records windows close with a **double-tap**. Their × buttons are removed, and a "Double-tap to close" footer shows on each. Tapping a record still opens its lifecycle; ‹ Back links stay.
 
