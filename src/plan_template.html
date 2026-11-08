@@ -311,6 +311,14 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 </section>
 <script type="application/json" id="data">/*__DATA__*/</script>
 <script>
+/*
+  Nimbus Site Floor Plan. Single-file app, no libraries. Data is injected at build time (build.py).
+  Sections, in order:
+    drawing layout · metric coloring · plan render · controls/tiles · detail panel tabs
+    rooms (zone rollups) · burst (level 1) · drill-down (level 2) + back · records window
+    lifecycle view · search · render loop
+  Versions and what changed in each: CHANGELOG.md. Git tags v1 … v5.1.
+*/
 (() => {
 const D = JSON.parse(document.getElementById('data').textContent);
 const P = D.positions, M = D.months;
