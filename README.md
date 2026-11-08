@@ -11,6 +11,8 @@ Open the artifact link, or `index.html` in any browser.
 | **Double-tap** | — | Back one level | Close and return to the bubbles |
 | **Hold** (ring countdown) | Unit → full detail panel | Details window for that bubble | — |
 
+**Triple-tap** anywhere to go back to the main page.
+
 Also included: search (units, alarm codes, vendors, technicians), building tiles, the month slider / ▶, and a detail panel with Overview, Flow, Connections and Activity tabs.
 
 ## Rebuilding
