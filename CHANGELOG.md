@@ -2,6 +2,10 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v8.4 — 2026-11-08 · branch `release/v8.4`
+- **Fix: "Load 25 more" on phones.** Buttons and rows inside the scrolling details, records, table and panel windows now act when your finger lifts, instead of waiting for the browser's click event, which iOS can drop inside a scrolling panel. The native click that follows is ignored, so nothing fires twice. After loading, the list scrolls to the first new row, flashes it, and a toast shows "Loaded 25 more · 50 of 86".
+- **Fix: timeline readout on phones.** It reset the moment your finger lifted, so it only flashed. On touch it now stays on the last month you touched or slid to; it still resets when a mouse leaves.
+
 ## v8.3 — 2026-11-08 · branch `release/v8.3`
 - **Timeline bars show their data.** Hover with a mouse, or touch and slide a finger across the bars on a phone, and the line above the chart shows that month: count, plus critical (alarms), open (work orders), $ (POs and invoices) or hours (labor). The bar under your finger lights up. Tap still jumps to that month's rows (or filters, in the table). With no bar selected, the line shows the peak month.
 
