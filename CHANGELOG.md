@@ -2,6 +2,12 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v6.3 — 2026-11-08 · branch `release/v6.3`
+- **Every record is available.** The export now ships all records per unit (about 49k rows, compactly encoded), not just the latest few, so a bubble showing 22 now opens a list of 22.
+- **Loads in blocks of 25.** Lists show the first 25, newest first. The button at the end, "Load 25 more · 25 of 86 shown", adds the next 25 each time you tap it, until it reads "All 86 shown". Works in both the details window and the records window.
+- **Line weight follows record count**, not dollars or hours: alarms, alerts, WOs, POs, invoices, labor entries and findings, each scaled to the largest on that screen.
+- The details window is taller (72% of the screen) and scrolls.
+
 ## v6.2 — 2026-11-08 · branch `release/v6.2`
 - Removed the stray dotted line that ran from the parent bubble (or your finger) to the center.
 - **Line thickness shows weight:** each line from the center is 1.5–11.5 px, scaled to its bubble's share of the largest on that screen.

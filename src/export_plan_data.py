@@ -151,20 +151,20 @@ bd_lab = df("""SELECT w.position_id id, c.technician k, count(*) n, round(sum(c.
 FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id) GROUP BY 1, 2""")
 
 rec_alarm = df("""SELECT * FROM (SELECT x.position_id id, strftime(a.raised_ts, '%Y-%m-%d %H:%M') ts, a.alarm_code k, a.severity sev, a.message msg, w.wo_id wo,
-  row_number() OVER (PARTITION BY x.position_id ORDER BY a.raised_ts DESC) rn
-  FROM bms_alarms a JOIN alarm_xwalk x USING (alarm_id) LEFT JOIN cmms_work_orders w ON w.source_alarm_id = a.alarm_id) WHERE rn <= 12""")
+  row_number() OVER (PARTITION BY x.position_id, a.alarm_code ORDER BY a.raised_ts DESC) rn
+  FROM bms_alarms a JOIN alarm_xwalk x USING (alarm_id) LEFT JOIN cmms_work_orders w ON w.source_alarm_id = a.alarm_id) WHERE rn <= 1000000""")
 rec_alert = df("""SELECT * FROM (SELECT x.position_id id, strftime(l.sent_ts, '%Y-%m-%d %H:%M') ts, l.team || ' · ' || l.channel k, l.alert_id aid, l.alarm_id, l.acknowledged ack,
-  row_number() OVER (PARTITION BY x.position_id ORDER BY l.sent_ts DESC) rn
-  FROM notify_alerts l JOIN alarm_xwalk x USING (alarm_id)) WHERE rn <= 10""")
+  row_number() OVER (PARTITION BY x.position_id, l.team, l.channel ORDER BY l.sent_ts DESC) rn
+  FROM notify_alerts l JOIN alarm_xwalk x USING (alarm_id)) WHERE rn <= 1000000""")
 rec_wo = df("""SELECT * FROM (SELECT position_id id, strftime(opened_ts, '%Y-%m-%d %H:%M') ts, wo_id wid, wo_type || ' ' || priority k, status, description d,
-  row_number() OVER (PARTITION BY position_id ORDER BY opened_ts DESC) rn FROM cmms_work_orders) WHERE rn <= 12""")
+  row_number() OVER (PARTITION BY position_id, wo_type, priority ORDER BY opened_ts DESC) rn FROM cmms_work_orders) WHERE rn <= 1000000""")
 rec_po = df("""SELECT * FROM (SELECT w.position_id id, strftime(p.created_ts, '%Y-%m-%d') ts, p.po_number pid, p.vendor k, p.amount amt, p.line_description d,
-  row_number() OVER (PARTITION BY w.position_id ORDER BY p.created_ts DESC) rn FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 10""")
+  row_number() OVER (PARTITION BY w.position_id, p.vendor ORDER BY p.created_ts DESC) rn FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 1000000""")
 rec_inv = df("""SELECT * FROM (SELECT w.position_id id, strftime(i.invoice_date, '%Y-%m-%d') ts, i.invoice_id iid, i.vendor k, i.amount amt, i.po_number po, i.memo d,
-  row_number() OVER (PARTITION BY w.position_id ORDER BY i.invoice_date DESC) rn
-  FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_orders w ON w.wo_id = p.wo_id) WHERE rn <= 10""")
+  row_number() OVER (PARTITION BY w.position_id, i.vendor ORDER BY i.invoice_date DESC) rn
+  FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_orders w ON w.wo_id = p.wo_id) WHERE rn <= 1000000""")
 rec_lab = df("""SELECT * FROM (SELECT w.position_id id, strftime(c.logged_ts, '%Y-%m-%d') ts, c.technician k, c.labor_hours hrs, c.note d, c.wo_id wid,
-  row_number() OVER (PARTITION BY w.position_id ORDER BY c.logged_ts DESC) rn FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 10""")
+  row_number() OVER (PARTITION BY w.position_id, c.technician ORDER BY c.logged_ts DESC) rn FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 1000000""")
 
 def grp(frame, cols):
     out = {}
@@ -179,13 +179,40 @@ BD = dict(
     inv=grp(bd_inv.sort_values("amt", ascending=False), ["k", "amt", "n"]),
     labor=grp(bd_lab.sort_values("hrs", ascending=False), ["k", "hrs", "n"]),
 )
+def nn(v):
+    if v is None or (isinstance(v, float) and np.isnan(v)) or v is pd.NaT: return None
+    if isinstance(v, (np.floating,)): return round(float(v), 2)
+    if isinstance(v, (np.integer, np.bool_)): return int(v)
+    if isinstance(v, float): return round(v, 2)
+    return v
+# all records per position, compactly encoded: ts -> minutes since 2024-12-01, repeated strings -> index into SD
+SD, SDI = [], {}
+def sidx(s):
+    if s is None or (isinstance(s, float) and np.isnan(s)): return None
+    if s not in SDI: SDI[s] = len(SD); SD.append(s)
+    return SDI[s]
+T0 = pd.Timestamp("2024-12-01")
+def tmin(s): return int((pd.Timestamp(s) - T0).total_seconds() // 60)
+def enc(frame, cols, str_cols):
+    out = {}
+    for pid, g in frame.sort_values("ts", ascending=False).groupby("id", sort=False):
+        rows = []
+        for r in g[cols].itertuples(index=False):
+            row = []
+            for c, v in zip(cols, r):
+                if c == "ts": row.append(tmin(v))
+                elif c in str_cols: row.append(sidx(v))
+                else: row.append(nn(v) if not isinstance(v, str) else v)
+            rows.append(row)
+        out[pid] = rows
+    return out
 REC = dict(
-    alarms=grp(rec_alarm.sort_values("rn"), ["ts", "k", "sev", "msg", "wo"]),
-    alerts=grp(rec_alert.sort_values("rn"), ["ts", "k", "aid", "alarm_id", "ack"]),
-    wos=grp(rec_wo.sort_values("rn"), ["ts", "k", "wid", "status", "d"]),
-    po=grp(rec_po.sort_values("rn"), ["ts", "k", "pid", "amt", "d"]),
-    inv=grp(rec_inv.sort_values("rn"), ["ts", "k", "iid", "amt", "po"]),
-    labor=grp(rec_lab.sort_values("rn"), ["ts", "k", "hrs", "d", "wid"]),
+    alarms=enc(rec_alarm, ["ts", "k", "sev", "msg", "wo"], {"k", "sev", "msg"}),
+    alerts=enc(rec_alert, ["ts", "k", "aid", "alarm_id", "ack"], {"k"}),
+    wos=enc(rec_wo, ["ts", "k", "wid", "status", "d"], {"k", "status", "d"}),
+    po=enc(rec_po, ["ts", "k", "pid", "amt", "d"], {"k", "d"}),
+    inv=enc(rec_inv, ["ts", "k", "iid", "amt", "po"], {"k"}),
+    labor=enc(rec_lab, ["ts", "k", "hrs", "d", "wid"], {"k", "d"}),
 )
 
 
@@ -266,7 +293,7 @@ for r in pos.itertuples():
     )
 
 data = dict(months=MONTHS, positions=P, feeds=feeds.values.tolist(), names=dict(zip(names.id, names.name)),
-            findings=findings, portfolio=portfolio, bd=BD, rec=REC, chains=CH,
+            findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD, chains=CH,
             asof="2026-10-31")
 json.dump(data, open(OUT, "w"), separators=(",", ":"), default=float)
 print(len(json.dumps(data)) // 1024, "KB;", len(findings), "position findings;", len(portfolio), "portfolio findings")
