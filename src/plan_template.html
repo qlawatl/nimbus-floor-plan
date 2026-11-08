@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbus Site Floor Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a CAD-style facility drawing is the main view; tapping equipment opens a detail sheet (bottom on phones, side column on desktop). */
+:root {
+  --paper: #f4f5f2;        /* page */
+  --sheet: #fcfcfb;        /* drawing + panels */
+  --ink: #15191d;
+  --ink-2: #4c5258;
+  --ink-3: #7c8389;
+  --line: #3d5a73;         /* drawing linework */
+  --line-soft: #c9d2d9;
+  --hair: #e2e5e3;
+  --accent: #1c5cab;
+  --sel: #0d366b;
+  --crit: #d03b3b; --warn: #fab219; --good: #0ca30c; --info: #2a78d6;
+  --seq0: #eef0ee; --seq1: #cde2fb; --seq2: #86b6ef; --seq3: #3987e5; --seq4: #1c5cab; --seq5: #0d366b;
+  --room: #f7f8f6; --hall: #f1f4f6; --yard: #eef0e8;
+  --font-ui: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1214; --sheet: #171b1e; --ink: #eef0ee; --ink-2: #b9c0c5; --ink-3: #868e94;
+    --line: #8fb3cf; --line-soft: #34414b; --hair: #262d32; --accent: #5598e7; --sel: #cde2fb;
+    --seq0: #222a30; --seq1: #184f95; --seq2: #256abf; --seq3: #3987e5; --seq4: #6da7ec; --seq5: #b7d3f6;
+    --room: #1b2024; --hall: #192026; --yard: #1a1f1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1214; --sheet: #171b1e; --ink: #eef0ee; --ink-2: #b9c0c5; --ink-3: #868e94;
+  --line: #8fb3cf; --line-soft: #34414b; --hair: #262d32; --accent: #5598e7; --sel: #cde2fb;
+  --seq0: #222a30; --seq1: #184f95; --seq2: #256abf; --seq3: #3987e5; --seq4: #6da7ec; --seq5: #b7d3f6;
+  --room: #1b2024; --hall: #192026; --yard: #1a1f1b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-ui); font-size: 15px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 14px 16px 40px; display: grid; gap: 14px; }
+@media (min-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr) 420px; align-items: start; } }
+
+header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; }
+h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--ink-3); font-size: 13px; }
+.seg { display: flex; gap: 0; border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden; background: var(--sheet); }
+.seg button { border: 0; background: none; padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.seg button + button { border-left: 1px solid var(--line-soft); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.badge { font-family: var(--font-mono); font-size: 11px; min-width: 18px; padding: 1px 5px; border-radius: 9px; background: var(--crit); color: #fff; text-align: center; }
+.seg button[aria-pressed="true"] .badge { background: #fff; color: var(--crit); }
+
+.main { display: grid; gap: 12px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kpi { background: var(--sheet); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px; }
+.kpi b { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+@media (max-width: 420px) { .kpi b { font-size: 15px; } .kpi { padding: 7px 8px; } }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.controls .seg button { padding: 6px 9px; font-size: 12px; }
+
+.drawing { background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 6px; }
+.drawing svg { display: block; width: 100%; height: auto; max-height: 78vh; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.burstwrap { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.burstwrap svg { display: block; }
+.burst { pointer-events: none; overflow: visible; }
+.burst .sat.hot circle { stroke: var(--accent); stroke-width: 4; }
+.burst .hint { font-family: var(--font-ui); font-weight: 600; }
+.burst .l1 { transition: opacity .2s ease; }
+.burst.deep .l1 { opacity: .05; }
+.burst .l2 .sat { opacity: 0; }
+.burst .dwell { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transform: rotate(-90deg); }
+.subwin { position: fixed; z-index: 40; background: var(--sheet); border: 1px solid var(--hair); display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.3); transition: transform .22s ease, opacity .22s ease; }
+@media (max-width: 899px) { .subwin { left: 0; right: 0; bottom: 0; max-height: 88%; border-radius: 16px 16px 0 0; transform: translateY(30px); opacity: 0; } }
+@media (min-width: 900px) { .subwin { left: 50%; top: 50%; width: 600px; max-height: 82vh; border-radius: 12px; transform: translate(-50%, -46%); opacity: 0; } .subwin.open { transform: translate(-50%, -50%) !important; } }
+.subwin.open { transform: none; opacity: 1; }
+.subscrim { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 39; }
+.subwin .ph { padding-bottom: 10px; border-bottom: 1px solid var(--hair); }
+.subwin .foot { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--hair); }
+.subwin .foot button { border: 1px solid var(--line-soft); background: var(--sheet); border-radius: 8px; padding: 8px 12px; font-weight: 600; cursor: pointer; }
+.subwin .foot .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.bars { display: grid; gap: 2px; }
+.brow { display: grid; grid-template-columns: minmax(0, 1.3fr) 1fr auto; gap: 10px; align-items: center; padding: 7px 6px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer; text-align: left; width: 100%; }
+.brow:hover { background: var(--paper); }
+.brow.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); }
+.brow .bl { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.brow .bl small { display: block; font-weight: 400; color: var(--ink-3); font-size: 11.5px; }
+.brow .bt { height: 10px; background: var(--hair); border-radius: 5px; overflow: hidden; }
+.brow .bt span { display: block; height: 100%; border-radius: 5px; border: 1px solid var(--line-soft); }
+.brow .bv { font-size: 13px; font-weight: 600; }
+.tl li.hit { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.timebar { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 8px 10px; }
+.timebar input { width: 100%; accent-color: var(--accent); }
+.timebar #mLabel { font-size: 13px; min-width: 62px; text-align: right; }
+.tbtn { border: 1px solid var(--line-soft); background: var(--sheet); border-radius: 8px; height: 32px; min-width: 34px; cursor: pointer; font-weight: 600; font-size: 13px; padding: 0 8px; }
+.tbtn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.burst .veil { fill: var(--sheet); opacity: 0; transition: opacity .18s ease; }
+.burst.on .veil { opacity: .9; }
+.burst .sat { transition: transform .32s cubic-bezier(.2, 1.5, .4, 1), opacity .2s ease; opacity: 0; }
+.burst.on .sat { opacity: 1; }
+.burst .tether { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 2; opacity: 0; transition: opacity .2s; }
+.burst.on .tether { opacity: .7; }
+.node.holding .shape { stroke: var(--accent); stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) { .burst .sat, .burst .veil, .burst .tether { transition: none; } }
+.titleblock { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); padding: 2px 4px 0; border-top: 1px solid var(--hair); margin-top: 4px; }
+
+.node { cursor: pointer; }
+.node .shape { stroke: var(--line); stroke-width: 1.2; }
+.node:hover .shape, .node:focus-visible .shape { stroke-width: 2.2; }
+.node.sel .shape { stroke: var(--sel); stroke-width: 3; }
+.node.dim { opacity: .35; }
+.node text { pointer-events: none; }
+.link { fill: none; stroke-width: 1.2; opacity: .55; }
+.link.power { stroke: var(--crit); stroke-dasharray: 4 3; }
+.link.cool { stroke: var(--info); stroke-dasharray: 2 3; }
+.link.hot { opacity: 1; stroke-width: 2.4; }
+.link.faint { opacity: .12; }
+@media (prefers-reduced-motion: no-preference) { .link.hot { animation: flow 1s linear infinite; } }
+@keyframes flow { to { stroke-dashoffset: -14; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); align-items: center; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--line-soft); }
+
+.card { background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 12px; }
+.card h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.find { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: start; padding: 9px 4px; border-top: 1px solid var(--hair); cursor: pointer; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; text-align: left; }
+.find:first-of-type { border-top: 0; }
+.find .bar { align-self: stretch; border-radius: 2px; }
+.find .t { font-weight: 600; font-size: 14px; }
+.find .d { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+.find .id { font-family: var(--font-mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
+.find:hover { background: var(--paper); }
+.sevtag { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 10px; }
+.sevtag.critical { background: color-mix(in srgb, var(--crit) 16%, transparent); color: var(--crit); }
+.sevtag.warning { background: color-mix(in srgb, var(--warn) 22%, transparent); color: color-mix(in srgb, var(--warn) 55%, var(--ink)); }
+.sevtag.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+
+/* detail panel: side column on desktop, bottom sheet on phones */
+.panel { background: var(--sheet); border: 1px solid var(--hair); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
+@media (min-width: 900px) { .panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); } .scrim, .grab { display: none; } }
+@media (max-width: 899px) {
+  .panel { position: fixed; left: 0; right: 0; bottom: 0; max-height: 86%; border-radius: 16px 16px 0 0; z-index: 20; transform: translateY(105%); transition: transform .25s ease; box-shadow: 0 -10px 30px rgba(0,0,0,.25); }
+  .panel.open { transform: none; }
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 19; display: none; }
+  .scrim.open { display: block; }
+  .panel .empty { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .panel { transition: none; } }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line-soft); margin: 8px auto 0; }
+.ph { padding: 10px 14px 0; display: grid; gap: 6px; }
+.ph-top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.ph h3 { margin: 0; font-size: 20px; font-family: var(--font-mono); font-weight: 600; }
+.crumb { font-size: 12px; color: var(--ink-3); }
+.x { border: 1px solid var(--line-soft); background: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; font-size: 18px; line-height: 1; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--hair); padding: 0 10px; margin-top: 4px; }
+.tabs button { border: 0; background: none; padding: 9px 10px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+.pb { padding: 12px 14px 18px; overflow-y: auto; display: grid; gap: 14px; }
+.empty { padding: 28px 18px; color: var(--ink-3); font-size: 14px; }
+.grid4 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { border: 1px solid var(--hair); border-radius: 8px; padding: 7px 8px; }
+.stat b { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; color: var(--ink-3); }
+.sect { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 6px; font-weight: 600; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.readout { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); min-height: 16px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; }
+.kv dt { color: var(--ink-3); } .kv dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; }
+.tl { list-style: none; margin: 0; padding: 0; }
+.tl li { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; padding: 7px 0; border-top: 1px solid var(--hair); font-size: 13px; align-items: start; }
+.tl li:first-child { border-top: 0; }
+.tl .when { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+.tl .what b { font-weight: 600; } .tl .what div { color: var(--ink-2); font-size: 12.5px; }
+.tl .amt { font-family: var(--font-mono); font-size: 12px; }
+.chip { font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line-soft); color: var(--ink-2); }
+.hist { display: grid; gap: 6px; }
+.hist div { display: grid; grid-template-columns: 10px 1fr; gap: 8px; font-size: 13px; }
+.hist i { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; border: 2px solid var(--accent); }
+.hist i.cur { background: var(--accent); }
+.gnode { cursor: pointer; }
+.gnode:hover rect { stroke-width: 2.4; }
+.note { font-size: 12px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Nimbus Site Floor Plan</h1>
+      <div class="sub">v3 · synthetic data · tap for details · hold to burst · slide + hold a circle to drill in · release to open</div>
+    </div>
+    <div class="seg" id="bldSeg" role="group" aria-label="Building"></div>
+  </header>
+
+  <div class="main">
+    <div class="kpis" id="kpis"></div>
+    <div class="controls">
+      <span>Color by</span>
+      <div class="seg" id="metricSeg" role="group" aria-label="Color by"></div>
+      <span>Links</span>
+      <div class="seg" id="linkSeg" role="group" aria-label="Show links"></div>
+    </div>
+    <div class="timebar">
+      <button type="button" id="playBtn" class="tbtn" aria-label="Play months">▶</button>
+      <input type="range" id="mSlider" min="0" max="21" value="21" aria-label="Month">
+      <span id="mLabel" class="mono">All time</span>
+      <button type="button" id="allBtn" class="tbtn wide" aria-pressed="true">All time</button>
+    </div>
+    <div class="drawing">
+      <svg id="plan" viewBox="0 0 360 620" role="img" aria-label="Building floor plan"></svg>
+      <div class="titleblock"><span id="tbName">—</span><span>DWG FP-01 · NOT TO SCALE</span></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <section class="card" aria-labelledby="fh"><h2 id="fh">Findings in this building</h2><div id="findList"></div></section>
+    <section class="card" aria-labelledby="ph"><h2 id="ph">Portfolio findings · not tied to one position</h2><div id="portList"></div></section>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="panel" id="panel" aria-label="Equipment detail">
+    <div class="grab"></div>
+    <div class="empty" id="empty">Select a piece of equipment on the drawing, or a finding, to see its details, alarm-to-invoice flow, connections and recent activity.</div>
+    <div id="detail" hidden>
+      <div class="ph">
+        <div class="ph-top">
+          <div><h3 id="dTitle"></h3><div class="crumb" id="dCrumb"></div></div>
+          <button class="x" id="closeBtn" aria-label="Close details">×</button>
+        </div>
+        <div id="dTags" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div class="pb" id="pbody"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="subscrim" id="subscrim" hidden></div>
+<section class="subwin" id="subwin" hidden role="dialog" aria-modal="true" aria-labelledby="swTitle">
+  <div class="grab" style="display:block"></div>
+  <div class="ph"><div class="ph-top"><div><h3 id="swTitle"></h3><div class="crumb" id="swCrumb"></div></div><button class="x" id="swClose" aria-label="Close">×</button></div></div>
+  <div class="pb" id="swBody"></div>
+  <div class="foot"><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
+</section>
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const P = D.positions, M = D.months;
+const BLD = ['E1-B1', 'E1-B2', 'W1-B1', 'W1-B2'];
+const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection' };
+const POWER = new Set(['GEN', 'ATS', 'SWGR', 'UPS', 'PDU']);
+const SEVR = { critical: 3, warning: 2, info: 1 };
+const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null };
+try { const h = location.hash.slice(1); if (BLD.includes(h)) S.b = h; } catch (e) {}
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = id => document.getElementById(id);
+const usd = v => v >= 1e6 ? '$' + (v / 1e6).toFixed(2) + 'M' : v >= 1e4 ? '$' + Math.round(v / 1e3) + 'K' : '$' + Math.round(v).toLocaleString();
+const num = v => Math.round(v).toLocaleString();
+const mlabel = m => { const [y, mm] = m.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mm - 1] + ' ' + y.slice(2); };
+const pad = n => String(n).padStart(2, '0');
+
+const findBy = {}; D.findings.forEach(f => (findBy[f.id] ||= []).push(f));
+const worst = id => (findBy[id] || []).reduce((m, f) => Math.max(m, SEVR[f.sev]), 0);
+const up = {}, down = {};
+D.feeds.forEach(([f, t]) => { (down[f] ||= []).push(t); (up[t] ||= []).push(f); });
+
+/* ---------- drawing layout (local keys like "UPS-03") ---------- */
+const L = {};
+const R = (k, x, y, w, h, shape = 'rect') => L[k] = { x, y, w, h, shape };
+for (let i = 0; i < 3; i++) R(`GEN-0${i + 1}`, 20 + i * 56, 42, 48, 32);
+for (let i = 0; i < 3; i++) R(`CT-0${i + 1}`, 206 + i * 50, 40, 40, 40, 'circle');
+R('SWGR-01', 24, 132, 70, 22); R('SWGR-02', 100, 132, 70, 22);
+for (let i = 0; i < 3; i++) R(`ATS-0${i + 1}`, 24 + i * 40, 172, 32, 20);
+for (let i = 0; i < 4; i++) R(`UPS-0${i + 1}`, 24 + i * 38, 216, 32, 44);
+for (let i = 0; i < 3; i++) R(`CH-0${i + 1}`, 194 + i * 50, 132, 42, 54);
+for (let i = 0; i < 4; i++) R(`PUMP-0${i + 1}`, 196 + i * 38, 226, 24, 24, 'circle');
+R('FIRE-01', 168, 290, 24, 14);
+for (let i = 0; i < 6; i++) { R(`CRAH-${pad(i + 1)}`, 22, 326 + i * 46, 22, 36); R(`CRAH-${pad(i + 7)}`, 316, 326 + i * 46, 22, 36); }
+for (let r = 0; r < 4; r++) { R(`PDU-${pad(2 * r + 1)}`, 60, 344 + r * 70, 28, 18); R(`PDU-${pad(2 * r + 2)}`, 272, 344 + r * 70, 28, 18); }
+const center = k => { const n = L[k]; return [n.x + n.w / 2, n.y + n.h / 2]; };
+const localKey = id => id.slice(6);
+
+/* ---------- metric coloring ---------- */
+const ALLT = {
+  health: { label: 'Findings' },
+  alarms: { label: 'Alarms 90d', get: id => P[id].k.alarms90 },
+  spend: { label: 'Spend', get: id => P[id].k.spend },
+  work: { label: 'Open WOs', get: id => P[id].k.open },
+};
+const MON = {
+  health: { label: 'Findings' },
+  alarms: { label: 'Alarms', get: id => P[id].ma[S.month] },
+  spend: { label: 'Spend', get: id => P[id].ms[S.month] },
+  work: { label: 'CM WOs', get: id => P[id].mc[S.month] },
+};
+const METRICS = () => S.month == null ? ALLT : MON;
+const PIDS = Object.keys(P);
+const MAX_ALL = { alarms: Math.max(1, ...PIDS.map(ALLT.alarms.get)), spend: Math.max(1, ...PIDS.map(ALLT.spend.get)), work: Math.max(1, ...PIDS.map(ALLT.work.get)) };
+const MAX_MON = { alarms: Math.max(1, ...PIDS.flatMap(id => P[id].ma)), spend: Math.max(1, ...PIDS.flatMap(id => P[id].ms)), work: Math.max(1, ...PIDS.flatMap(id => P[id].mc)) };
+const maxOf = m => (S.month == null ? MAX_ALL : MAX_MON)[m];
+function fillFor(id) {
+  if (S.metric === 'health') {
+    const w = worst(id);
+    return w === 3 ? ['color-mix(in srgb, var(--crit) 30%, var(--sheet))', 'var(--ink)']
+         : w === 2 ? ['color-mix(in srgb, var(--warn) 40%, var(--sheet))', 'var(--ink)']
+         : w === 1 ? ['color-mix(in srgb, var(--info) 18%, var(--sheet))', 'var(--ink)']
+         : ['var(--seq0)', 'var(--ink-2)'];
+  }
+  const v = METRICS()[S.metric].get(id);
+  if (!v) return ['var(--seq0)', 'var(--ink-2)'];
+  const step = Math.min(5, 1 + Math.floor(Math.sqrt(v / maxOf(S.metric)) * 5));
+  return [`var(--seq${step})`, step >= 3 ? '#fff' : 'var(--ink)'];
+}
+
+/* ---------- drawing ---------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function trace(start, map) {
+  const out = new Set(), q = [start];
+  while (q.length) { const n = q.shift(); (map[n] || []).forEach(m => { if (!out.has(m)) { out.add(m); q.push(m); } }); }
+  return out;
+}
+function drawPlan() {
+  const b = S.b, svg = $('plan');
+  const room = (x, y, w, h, fill, label, lx, ly) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="var(${fill})" stroke="var(--line)" stroke-width="1"/>` + (label ? `<text x="${lx ?? x + w - 6}" y="${ly ?? y + h - 6}" text-anchor="${lx ? 'middle' : 'end'}" font-size="7.5" font-family="var(--font-mono)" fill="var(--ink-3)" letter-spacing=".08em">${label}</text>` : '');
+  const glabel = (x, y, t, anchor = 'start') => `<text x="${x}" y="${y}" font-size="7" font-family="var(--font-ui)" font-weight="600" fill="var(--ink-2)" text-anchor="${anchor}" letter-spacing=".06em">${t}</text>`;
+  let h = '';
+  h += room(8, 8, 344, 92, '--yard', 'EQUIPMENT YARD', 180, 94);
+  h += glabel(20, 36, 'GENERATORS') + glabel(206, 32, 'COOLING TOWERS');
+  h += `<rect x="8" y="108" width="344" height="504" fill="none" stroke="var(--line)" stroke-width="3"/>`;
+  h += room(14, 114, 164, 172, '--room', 'ELECTRICAL ROOM');
+  h += room(182, 114, 164, 172, '--room', 'MECHANICAL PLANT');
+  h += glabel(24, 128, 'MV SWITCHGEAR') + glabel(24, 168, 'TRANSFER SWITCHES') + glabel(24, 212, 'UPS MODULES');
+  h += glabel(194, 128, 'CHILLERS') + glabel(196, 222, 'CHW PUMPS');
+  h += `<text x="180" y="300" font-size="7" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="end" dx="-16">CORRIDOR</text>`;
+  h += `<path d="M14 286 h40 M66 286 h112 M182 286 h100 M294 286 h52" stroke="var(--line)" stroke-width="2"/>`;
+  h += room(14, 310, 332, 296, '--hall', 'DATA HALL 1', 180, 600);
+  h += `<path d="M14 310 h140 M206 310 h140" stroke="var(--line)" stroke-width="2"/>`;
+  for (let r = 0; r < 4; r++) {
+    const y = 340 + r * 70;
+    h += `<rect x="98" y="${y}" width="164" height="26" fill="none" stroke="var(--line-soft)" stroke-width="1"/>`;
+    for (let k = 1; k < 20; k++) h += `<line x1="${98 + k * 8.2}" y1="${y}" x2="${98 + k * 8.2}" y2="${y + 26}" stroke="var(--line-soft)" stroke-width=".5"/>`;
+    h += `<text x="180" y="${y + 16}" font-size="6.5" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="middle">RACK ROW ${String.fromCharCode(65 + r)}</text>`;
+    if (r < 3) h += `<text x="180" y="${y + 50}" font-size="6" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="middle" letter-spacing=".2em">${r % 2 ? 'HOT AISLE' : 'COLD AISLE'}</text>`;
+  }
+  h += glabel(33, 600, 'CRAH', 'middle') + glabel(327, 600, 'CRAH', 'middle') + glabel(74, 336, 'PDU', 'middle') + glabel(286, 336, 'PDU', 'middle');
+
+  // links
+  const selId = S.sel && S.sel.startsWith(b) ? S.sel : null;
+  const hotSet = selId ? new Set([selId, ...trace(selId, up), ...trace(selId, down)]) : null;
+  let lh = '';
+  if (S.links !== 'off' || selId) {
+    D.feeds.forEach(([f, t]) => {
+      if (!f.startsWith(b)) return;
+      const isPower = POWER.has(P[f].cls);
+      const want = S.links === 'all' || (S.links === 'power' && isPower) || (S.links === 'cool' && !isPower);
+      const hot = hotSet && hotSet.has(f) && hotSet.has(t);
+      if (!want && !hot) return;
+      const [x1, y1] = center(localKey(f)), [x2, y2] = center(localKey(t));
+      const my = (y1 + y2) / 2;
+      lh += `<path class="link ${isPower ? 'power' : 'cool'} ${hot ? 'hot' : hotSet ? 'faint' : ''}" d="M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}"/>`;
+    });
+  }
+  // nodes
+  let nh = '';
+  Object.keys(L).forEach(k => {
+    const id = `${b}-${k}`, n = L[k];
+    if (!P[id]) return;
+    const [fill, ink] = fillFor(id);
+    const cls = 'node' + (id === selId ? ' sel' : '') + (hotSet && !hotSet.has(id) ? ' dim' : '');
+    const lab = k.split('-')[1];
+    const shape = n.shape === 'circle'
+      ? `<circle class="shape" cx="${n.x + n.w / 2}" cy="${n.y + n.h / 2}" r="${n.w / 2}" fill="${fill}"/>`
+      : `<rect class="shape" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="2" fill="${fill}"/>`;
+    const w = worst(id);
+    const mark = w >= 2 ? `<g transform="translate(${n.x + n.w - 3},${n.y + 1})"><circle r="5.5" fill="var(${w === 3 ? '--crit' : '--warn'})" stroke="var(--sheet)" stroke-width="1.2"/><text y="2.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="${w === 3 ? '#fff' : '#0b0b0b'}">${w === 3 ? '!' : '▲'}</text></g>` : '';
+    nh += `<g class="${cls}" data-id="${id}" tabindex="0" role="button" aria-label="${esc(CLS[P[id].cls])} ${lab}${w ? ', has findings' : ''}">
+      <rect x="${n.x - 4}" y="${n.y - 4}" width="${n.w + 8}" height="${n.h + 8}" fill="transparent"/>${shape}
+      <text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + 3}" font-size="8" font-family="var(--font-mono)" font-weight="600" text-anchor="middle" fill="${ink}">${lab}</text>${mark}</g>`;
+  });
+  svg.innerHTML = h + lh + nh;
+  $('tbName').textContent = D.names[b] || b;
+}
+/* ---------- press-and-hold burst; release to close ---------- */
+const HOLD_MS = 260;
+let hold = null; // { id, timer, open, el }
+const maxK = {};
+['alarms', 'alerts', 'wos', 'spend', 'labor'].forEach(k => maxK[k] = Math.max(1, ...Object.values(P).map(p => p.k[k] || 0)));
+maxK.po = Math.max(1, ...Object.values(P).map(p => (p.flow['wo>po'] || {}).amt || 0));
+const rFor = (v, mx) => 17 + 9 * Math.sqrt(Math.max(0, v) / mx);
+function openBurst(id) {
+  const W = document.documentElement.clientWidth || innerWidth, H = (window.visualViewport && visualViewport.height) || innerHeight, mn = Math.min(W, H);
+  const k = P[id].k, fl = P[id].flow, fs = findBy[id] || [], w = worst(id), p = P[id];
+  const base = Math.max(28, Math.min(42, mn * 0.075)), grow = 0.8;   // readable at base size, grows with occurrences
+  const rOf = (v, mx) => base * (1 + grow * Math.sqrt(Math.max(0, v) / mx));
+  const poAmt = (fl['wo>po'] || {}).amt || 0, mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
+  const sats = [
+    mo == null ? { v: num(k.alarms), c: 'alarms', sub: `${num(k.alarms90)} in 90d`, r: rOf(k.alarms, maxK.alarms), f: 'var(--seq2)', go: 'events', name: 'Alarms → Activity', m: 'alarms' }
+               : { v: num(p.ma[mo]), c: 'alarms', sub: ml, r: rOf(p.ma[mo], MAX_MON.alarms), f: 'var(--seq2)', go: 'events', name: 'Alarms → Activity', m: 'alarms' },
+    { v: num(k.alerts), c: 'alerts', sub: 'paged', r: rOf(k.alerts, maxK.alerts), f: 'var(--seq1)', go: 'events', name: 'Alerts → Activity', m: 'alerts' },
+    mo == null ? { v: num(k.wos), c: 'WOs', sub: `${k.open} open`, r: rOf(k.wos, maxK.wos), f: 'var(--seq2)', go: 'flow', name: 'Work orders → Flow', m: 'wos' }
+               : { v: num(p.mc[mo]), c: 'CM WOs', sub: ml, r: rOf(p.mc[mo], MAX_MON.work), f: 'var(--seq2)', go: 'flow', name: 'Work orders → Flow', m: 'wos' },
+    { v: usd(poAmt), c: 'PO value', sub: `${num((fl['wo>po'] || {}).n || 0)} POs`, r: rOf(poAmt, maxK.po), f: 'var(--seq1)', go: 'flow', name: 'POs → Flow', m: 'po' },
+    mo == null ? { v: usd(k.spend), c: 'invoiced', sub: `${usd(k.spend90)} 90d`, r: rOf(k.spend, maxK.spend), f: 'var(--seq2)', go: 'overview', name: 'Spend → Overview', m: 'inv' }
+               : { v: usd(p.ms[mo]), c: 'invoiced', sub: ml, r: rOf(p.ms[mo], MAX_MON.spend), f: 'var(--seq2)', go: 'overview', name: 'Spend → Overview', m: 'inv' },
+    { v: num(k.labor), c: 'labor hrs', sub: k.pm ? `${Math.round(100 * k.pmlate / k.pm)}% PM late` : '', r: rOf(k.labor, maxK.labor), f: 'var(--seq1)', go: 'events', name: 'Labor → Activity', m: 'labor' },
+    { v: fs.length ? (w === 3 ? '! ' : w === 2 ? '▲ ' : '') + fs.length : '0', c: fs.length ? 'findings' : 'no findings',
+      sub: fs.length ? (fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Findings → Overview', m: 'findings',
+      r: base * (fs.length ? 1.45 : 1), f: w === 3 ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : w === 2 ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq0)' },
+  ];
+  const ups = up[id] || [], downs = down[id] || [];
+  const maxR = Math.max(...sats.map(s => s.r)), rC = base * 1.25;
+  const topBand = ups.length ? 150 : 50, botBand = downs.length ? 110 : 30;
+  const cx = W / 2, cy = topBand + (H - topBand - botBand) / 2;
+  const rx = Math.min(W / 2 - maxR - 6, 280), ry = Math.max(rC + maxR * .6, Math.min(rx * 1.7, (H - topBand - botBand) / 2 - maxR - 4));
+  // where the finger is: start point for the explosion
+  const nEl = document.querySelector(`.node[data-id="${id}"] .shape`), nb = nEl ? nEl.getBoundingClientRect() : { left: cx, top: cy, width: 0, height: 0 };
+  const sx = nb.left + nb.width / 2, sy = nb.top + nb.height / 2;
+  const hits = [];
+  let h = `<rect class="veil" x="-50" y="-50" width="${W + 100}" height="${H + 400}"/>
+    <text class="hint" x="${cx}" y="26" text-anchor="middle" font-size="13" fill="var(--ink-2)">${HINT1}</text><g class="l1">
+    <line class="tether" x1="${sx}" y1="${sy}" x2="${cx}" y2="${cy}" style="stroke-width:2"/>`;
+  const satG = (i, x, y, inner, delay) => `<g class="sat" data-i="${i}" data-to="${x},${y}" style="transform:translate(${sx}px,${sy}px) scale(.15);transition-delay:${delay}ms">${inner}</g>`;
+  sats.forEach((s, i) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / sats.length, x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+    const fs1 = Math.round(Math.max(13, s.r * 0.42)), fs2 = Math.max(10, Math.round(fs1 * .72)), fs3 = Math.max(9, Math.round(fs1 * .62));
+    hits.push({ x, y, r: s.r, id, tab: s.go, name: s.c, m: s.m, kind: 'sub', vs: s.v });
+    h += `<line class="tether" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
+    h += satG(hits.length - 1, x, y, `<circle r="${s.r}" fill="${s.f}" stroke="var(--line)" stroke-width="1.2"/>
+      <text y="${s.sub ? -fs3 * .3 : fs1 * .1}" text-anchor="middle" font-size="${fs1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(s.v)}</text>
+      <text y="${s.sub ? fs2 + 1 : fs2 + 3}" text-anchor="middle" font-size="${fs2}" fill="var(--ink-2)">${esc(s.c)}</text>
+      ${s.sub ? `<text y="${fs2 + fs3 + 3}" text-anchor="middle" font-size="${fs3}" fill="var(--ink-3)">${esc(s.sub)}</text>` : ''}`, i * 25);
+  });
+  const row = (list, y, dir, label) => {
+    if (!list.length) return;
+    const n = list.length, rN = Math.min(base * .9, (W - 24) / n / 2 - 5);
+    h += `<text x="${cx}" y="${dir === '↑' ? y - rN - 10 : y + rN + 18}" text-anchor="middle" font-size="11" font-weight="600" letter-spacing=".08em" fill="var(--ink-3)">${label}</text>`;
+    list.forEach((x, i) => {
+      const nx = W / 2 + (i - (n - 1) / 2) * Math.min(rN * 2 + 12, (W - 24) / n), [fill, ink] = fillFor(x), pw = POWER.has(P[x].cls);
+      hits.push({ x: nx, y, r: rN, id: x, tab: 'overview', name: `Open ${P[x].cls}-${x.split('-').pop()}`, kind: 'pos' });
+      h += `<line class="tether" x1="${cx}" y1="${cy}" x2="${nx}" y2="${y}" style="stroke:var(${pw ? '--crit' : '--info'})"/>`;
+      h += satG(hits.length - 1, nx, y, `<circle r="${rN}" fill="${fill}" stroke="var(${pw ? '--crit' : '--info'})" stroke-width="1.8"/>
+        <text y="-2" text-anchor="middle" font-size="${Math.max(10, rN * .36)}" font-weight="700" font-family="var(--font-mono)" fill="${ink}">${P[x].cls}</text>
+        <text y="${Math.max(11, rN * .42)}" text-anchor="middle" font-size="${Math.max(10, rN * .36)}" font-family="var(--font-mono)" fill="${ink}">${x.split('-').pop()}${worst(x) === 3 ? ' !' : worst(x) === 2 ? ' ▲' : ''}</text>`, 160 + i * 30);
+    });
+  };
+  row(ups, topBand - 54, '↑', 'FEEDS THIS UNIT');
+  row(downs, H - botBand + 52, '↓', 'FED BY THIS UNIT');
+  hits.push({ x: cx, y: cy, r: rC, id, tab: 'overview', name: 'Details → Overview', kind: 'pos' });
+  h += satG(hits.length - 1, cx, cy, `<circle r="${rC}" fill="var(--accent)" stroke="var(--sheet)" stroke-width="3"/>
+    <text y="-3" text-anchor="middle" font-size="${Math.round(rC * .36)}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${P[id].cls}-${id.split('-').pop()}</text>
+    <text y="${Math.round(rC * .36)}" text-anchor="middle" font-size="${Math.round(rC * .26)}" fill="#fff" opacity=".85">${esc(id.slice(0, 5))}${mo != null ? ' · ' + ml : ''}</text>`, 0);
+  const wrap = document.createElement('div');
+  wrap.className = 'burstwrap';
+  wrap.innerHTML = `<svg class="burst" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${h}</g><g class="l2"></g></svg>`;
+  document.body.appendChild(wrap);
+  const g = wrap.firstChild;
+  g.getBoundingClientRect();
+  const go = () => {
+    if (g.classList.contains('on')) return;
+    g.classList.add('on');
+    g.querySelectorAll('.sat').forEach(s => { const [x, y] = s.dataset.to.split(',').map(Number); s.style.transform = `translate(${x}px,${y}px) scale(1)`; });
+  };
+  requestAnimationFrame(go); setTimeout(go, 40);
+  if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
+  return { g: wrap, svg: g, hits, cur: null, level: 1, W, H, base, id };
+}
+function closeBurst(wrap) {
+  if (!wrap) return;
+  const g = wrap.firstChild;
+  g.classList.remove('on');
+  g.querySelectorAll('.sat').forEach(s => { s.style.transitionDelay = '0ms'; s.style.opacity = '0'; });
+  setTimeout(() => wrap.remove(), 200);
+}
+const HINT1 = 'Slide onto a circle · hold to drill in · release to open';
+const DWELL_MS = 450;
+function hoverBurst(b, e) {
+  let best = null, bd = Infinity;
+  b.hits.forEach((h, i) => { const d = Math.hypot(e.clientX - h.x, e.clientY - h.y); if (d <= h.r + 8 && d < bd) { bd = d; best = i; } });
+  if (best === b.curI) return;
+  b.curI = best; b.cur = best == null ? null : b.hits[best];
+  clearTimeout(b.dwell);
+  const layer = b.svg.querySelector(b.level === 1 ? '.l1' : '.l2');
+  b.svg.querySelectorAll('.dwell').forEach(x => x.remove());
+  layer.querySelectorAll('.sat').forEach(s => s.classList.toggle('hot', +s.dataset.i === best));
+  const hint = b.svg.querySelector('.hint');
+  if (!b.cur) hint.textContent = b.level === 1 ? HINT1 : 'Slide onto a circle · release to open its records';
+  else if (b.cur.kind === 'pos') hint.textContent = 'Release: ' + b.cur.name;
+  else if (b.level === 1) {
+    hint.textContent = `Hold to drill into ${b.cur.name} · release to open`;
+    const s = layer.querySelector(`.sat[data-i="${best}"]`), r = b.cur.r + 7, c = 2 * Math.PI * r;
+    const ring = document.createElementNS(SVGNS, 'circle');
+    ring.setAttribute('class', 'dwell'); ring.setAttribute('r', r);
+    ring.style.strokeDasharray = c; ring.style.strokeDashoffset = c;
+    s.appendChild(ring); ring.getBoundingClientRect();
+    ring.style.transition = `stroke-dashoffset ${DWELL_MS}ms linear`; ring.style.strokeDashoffset = 0;
+    const target = b.cur;
+    b.dwell = setTimeout(() => { if (b.cur === target && b.level === 1) openLevel2(b, target); }, DWELL_MS);
+  } else hint.textContent = 'Release to open: ' + b.cur.name;
+  if (b.cur && navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
+}
+
+/* ---------- drill-down data ---------- */
+const MTITLE = { alarms: 'Alarms', alerts: 'Alerts', wos: 'Work orders', po: 'Purchase orders', inv: 'Invoices', labor: 'Labor', findings: 'Findings' };
+const MSHORT = { alarms: 'alarms', alerts: 'alerts', wos: 'work orders', po: 'POs', inv: 'invoiced', labor: 'labor hrs', findings: 'findings' };
+const MTAB = { alarms: 'events', alerts: 'events', labor: 'events', wos: 'flow', po: 'flow', inv: 'overview', findings: 'overview' };
+const sevFill = s => s === 'critical' ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : s === 'major' ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq1)';
+function drill(id, m) {
+  const bd = (D.bd[m] || {})[id] || [], short = k => k.replace(P[id].cls + '_', '').replace(/_/g, ' ');
+  switch (m) {
+    case 'alarms': return bd.map(([k, n, sev, orph]) => ({ key: k, label: short(k), v: n, vs: num(n), sub: sev + (orph ? ` · ${orph} no WO` : ''), f: sevFill(sev) }));
+    case 'alerts': return bd.map(([k, n, ack]) => ({ key: k, label: k, v: n, vs: num(n), sub: `${Math.round(ack * 100)}% ack'd`, f: 'var(--seq1)' }));
+    case 'wos': return bd.map(([k, n, open]) => ({ key: k, label: k, v: n, vs: num(n), sub: open ? `${open} open` : 'all closed', f: k.startsWith('CM P1') ? sevFill('critical') : k.startsWith('CM') ? 'var(--seq2)' : 'var(--seq1)' }));
+    case 'po': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, vs: usd(amt), sub: `${n} POs`, f: 'var(--seq1)' }));
+    case 'inv': return bd.map(([k, amt, n]) => ({ key: k, label: k, v: amt, vs: usd(amt), sub: `${n} invoices`, f: 'var(--seq2)' }));
+    case 'labor': return bd.map(([k, hrs, n]) => ({ key: k, label: k, v: hrs, vs: num(hrs) + ' h', sub: `${n} entries`, f: 'var(--seq1)' }));
+    case 'findings': return (findBy[id] || []).map(f => ({ key: f.title, label: f.title, v: 1, vs: f.sev === 'critical' ? '!' : f.sev === 'warning' ? '▲' : 'i', sub: f.sev, f: sevFill(f.sev === 'warning' ? 'major' : f.sev) }));
+  }
+  return [];
+}
+function wrap2(s, n) {
+  if (s.length <= n) return [s];
+  const words = s.split(/\s+/); let a = '';
+  while (words.length && (a + ' ' + words[0]).trim().length <= n) a = (a + ' ' + words.shift()).trim();
+  if (!a) { a = s.slice(0, n); return [a, s.slice(n, 2 * n - 1) + (s.length > 2 * n - 1 ? '…' : '')]; }
+  let b2 = words.join(' '); if (b2.length > n) b2 = b2.slice(0, n - 1) + '…';
+  return [a, b2];
+}
+function openLevel2(b, parent) {
+  const { W, H, base, id } = b, m = parent.m, all = drill(id, m);
+  const items = all.slice(0, 8), rest = all.length - items.length;
+  b.level = 2; b.parent = parent; b.curI = undefined; b.cur = null;
+  if (navigator.vibrate) try { navigator.vibrate([10, 30, 10]); } catch (e) {}
+  b.svg.classList.add('deep');
+  const cx = W / 2, cy = H / 2 + 10, rC = base * 1.6;
+  const mx = Math.max(1, ...items.map(i => i.v));
+  const rs = items.map(i => base * (1 + 0.9 * Math.sqrt(i.v / mx)));
+  const maxR = Math.max(base, ...rs);
+  const rx = Math.min(W / 2 - maxR - 6, 290), ry = Math.max(rC + maxR + 6, Math.min(rx * 1.7, H / 2 - maxR - 50));
+  const hits = [], sx = parent.x, sy = parent.y;
+  let h = `<line class="tether" x1="${sx}" y1="${sy}" x2="${cx}" y2="${cy}" style="stroke-width:2"/>`;
+  const satG = (i, x, y, inner, delay) => `<g class="sat" data-i="${i}" data-to="${x},${y}" style="transform:translate(${sx}px,${sy}px) scale(.15);transition-delay:${delay}ms">${inner}</g>`;
+  items.forEach((it, i) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / Math.max(items.length, 1), x = cx + Math.cos(a) * (items.length === 1 ? 0 : rx), y = cy + Math.sin(a) * (items.length === 1 ? ry : ry);
+    const r = rs[i], f1 = Math.round(Math.max(13, r * .38)), f2 = Math.max(10, Math.round(f1 * .7)), f3 = Math.max(9, Math.round(f1 * .6));
+    const lines = wrap2(it.label, Math.max(8, Math.floor(r * 1.6 / (f2 * .55))));
+    hits.push({ x, y, r, id, m, item: it.key, name: it.label, kind: 'sub' });
+    h += `<line class="tether" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
+    h += satG(hits.length - 1, x, y, `<circle r="${r}" fill="${it.f}" stroke="var(--line)" stroke-width="1.2"/>
+      <text y="${-f2 * (lines.length - 1) * .5 - 2}" text-anchor="middle" font-size="${f1}" font-weight="700" font-family="var(--font-mono)" fill="var(--ink)">${esc(it.vs)}</text>
+      ${lines.map((l, j) => `<text y="${f2 + 1 + j * (f2 + 1) - f2 * (lines.length - 1) * .5}" text-anchor="middle" font-size="${f2}" fill="var(--ink)">${esc(l)}</text>`).join('')}
+      <text y="${f2 + 1 + lines.length * (f2 + 1) - f2 * (lines.length - 1) * .5 + 1}" text-anchor="middle" font-size="${f3}" fill="var(--ink-3)">${esc(it.sub)}</text>`, i * 30);
+  });
+  hits.push({ x: cx, y: cy, r: rC, id, m, item: null, name: `all ${MTITLE[m].toLowerCase()}`, kind: 'sub' });
+  h += satG(hits.length - 1, cx, cy, `<circle r="${rC}" fill="var(--accent)" stroke="var(--sheet)" stroke-width="3"/>
+    <text y="${-rC * .1}" text-anchor="middle" font-size="${Math.max(16, Math.round(rC * .3))}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${esc(parent.vs || '')}</text>
+    <text y="${rC * .22}" text-anchor="middle" font-size="${Math.max(12, Math.round(rC * .2))}" font-weight="600" fill="#fff">${esc(MSHORT[m])}</text>
+    <text y="${rC * .5}" text-anchor="middle" font-size="${Math.max(10, Math.round(rC * .16))}" fill="#fff" opacity=".85">${P[id].cls}-${id.split('-').pop()}${rest > 0 ? ` · +${rest} more` : ''}</text>`, 0);
+  if (!items.length) h += `<text x="${cx}" y="${cy + rC + 30}" text-anchor="middle" font-size="13" fill="var(--ink-3)">No ${MTITLE[m].toLowerCase()} recorded</text>`;
+  const l2 = b.svg.querySelector('.l2');
+  l2.innerHTML = h;
+  l2.getBoundingClientRect();
+  const go = () => { if (l2.dataset.on) return; l2.dataset.on = 1; l2.querySelectorAll('.sat').forEach(s => { const [x, y] = s.dataset.to.split(',').map(Number); s.style.opacity = 1; s.style.transform = `translate(${x}px,${y}px) scale(1)`; }); };
+  requestAnimationFrame(go); setTimeout(go, 40);
+  b.hits = hits;
+  b.svg.querySelector('.hint').textContent = 'Slide onto a circle · release to open its records';
+}
+
+/* ---------- sub-data window ---------- */
+const SW = { id: null, m: null, item: null };
+function openSub(id, m, item) {
+  Object.assign(SW, { id, m, item });
+  renderSub();
+  $('subwin').hidden = false; $('subscrim').hidden = false;
+  requestAnimationFrame(() => $('subwin').classList.add('open'));
+}
+function closeSub() { $('subwin').classList.remove('open'); $('subwin').hidden = true; $('subscrim').hidden = true; }
+function recRow(m, r, hit) {
+  const cls = hit ? ' class="hit"' : '';
+  switch (m) {
+    case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> ${sevtag(sev === 'major' ? 'warning' : sev === 'critical' ? 'critical' : 'info').replace(/warning|info/, sev)}<div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
+    case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
+    case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(wid)}</b> <span class="chip">${esc(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
+    case 'po': { const [ts, k, pid, amt, d] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(pid)}</b> · ${esc(k)}<div>${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'inv': { const [ts, k, iid, amt, po] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(iid)}</b> · ${esc(k)}<div>against ${esc(po)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'labor': { const [ts, k, hrs, d, wid] = r; return `<li${cls}><span class="when">${ts}</span><span class="what"><b>${esc(k)}</b> · ${esc(wid)}<div>${esc(d)}</div></span><span class="amt">${hrs} h</span></li>`; }
+  }
+  return '';
+}
+function renderSub() {
+  const { id, m, item } = SW, p = P[id], items = drill(id, m), total = items.reduce((a, i) => a + i.v, 0), mx = Math.max(1, ...items.map(i => i.v));
+  $('swTitle').textContent = `${p.cls}-${id.split('-').pop()} · ${MTITLE[m]}`;
+  $('swCrumb').textContent = `${id} · ${p.system} · all time` + (item ? ` · filtered to ${item}` : '');
+  let h = '';
+  if (m === 'findings') {
+    h += (findBy[id] || []).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('') || '<div class="note">No findings at this position.</div>';
+  } else {
+    h += `<div class="sect">Breakdown · tap a row to filter</div><div class="bars">${items.map(i => `
+      <button type="button" class="brow${i.key === item ? ' on' : ''}" data-k="${esc(i.key)}">
+        <span class="bl">${esc(i.label)}<small>${esc(i.sub)}</small></span>
+        <span class="bt"><span style="width:${Math.max(2, 100 * i.v / mx)}%;background:${i.f}"></span></span>
+        <span class="bv mono">${esc(i.vs)}</span></button>`).join('') || '<div class="note">Nothing recorded.</div>'}</div>`;
+    const recs = (D.rec[m] || {})[id] || [], hitRows = item ? recs.filter(r => r[1] === item) : recs;
+    const showRows = hitRows.length ? hitRows : recs;
+    h += `<div class="sect" style="margin-top:6px">Latest records${item ? ` · ${esc(item)}` : ''}</div>`;
+    if (item && !hitRows.length) h += `<div class="note">None of the latest ${recs.length} records are ${esc(item)}; showing all.</div>`;
+    h += `<ul class="tl">${showRows.map(r => recRow(m, r, item && r[1] === item)).join('')}</ul>`;
+  }
+  $('swBody').innerHTML = h;
+}
+$('swBody').addEventListener('click', e => { const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swClose').onclick = closeSub;
+$('subscrim').onclick = closeSub;
+$('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
+$('plan').addEventListener('pointerdown', e => {
+  const n = e.target.closest('.node'); if (!n || e.button > 0) return;
+  const id = n.dataset.id;
+  n.classList.add('holding');
+  hold = { id, node: n, open: null, x: e.clientX, y: e.clientY,
+    timer: setTimeout(() => { hold.open = openBurst(id); }, HOLD_MS) };
+});
+const endHold = (e, cancelled) => {
+  if (!hold) return;
+  const h = hold; hold = null;
+  clearTimeout(h.timer); h.node.classList.remove('holding');
+  if (h.open) {
+    const target = !cancelled && h.open.cur;
+    clearTimeout(h.open.dwell);
+    closeBurst(h.open.g);
+    if (target && target.kind === 'sub') openSub(target.id, target.m, target.item || null);
+    else if (target) { S.tab = target.tab; select(target.id); }
+  } else if (!cancelled) select(h.id);
+};
+window.addEventListener('pointerup', e => endHold(e, false));
+window.addEventListener('pointercancel', e => endHold(e, true));
+window.addEventListener('pointermove', e => {
+  if (!hold) return;
+  if (hold.open) return hoverBurst(hold.open, e);
+  if (Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10) endHold(e, true);
+});
+// once the burst is open, finger movement slides between circles instead of scrolling the page
+$('plan').addEventListener('touchmove', e => { if (hold && hold.open) e.preventDefault(); }, { passive: false });
+$('plan').addEventListener('contextmenu', e => { if (e.target.closest('.node')) e.preventDefault(); });
+$('plan').addEventListener('keydown', e => { const g = e.target.closest('.node'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(g.dataset.id); } });
+
+/* ---------- controls ---------- */
+function seg(el, items, cur, onPick) {
+  el.innerHTML = items.map(([v, label, extra]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${label}${extra || ''}</button>`).join('');
+  el.onclick = e => { const btn = e.target.closest('button'); if (btn) onPick(btn.dataset.v); };
+}
+const bldIds = b => Object.keys(P).filter(id => id.startsWith(b + '-'));
+function renderControls() {
+  seg($('bldSeg'), BLD.map(b => { const c = bldIds(b).filter(id => worst(id) === 3).length; return [b, b, c ? `<span class="badge" aria-label="${c} critical">${c}</span>` : '']; }), S.b,
+    v => { S.b = v; if (S.sel && !S.sel.startsWith(v)) closePanel(true); try { history.replaceState(null, '', '#' + v); } catch (e) {} renderAll(); });
+  seg($('metricSeg'), Object.entries(METRICS()).map(([k, m]) => [k, m.label]), S.metric, v => { S.metric = v; renderAll(); });
+  seg($('linkSeg'), [['off', 'Off'], ['power', 'Power'], ['cool', 'Cooling'], ['all', 'All']], S.links, v => { S.links = v; renderAll(); });
+}
+function renderKpis() {
+  const ids = bldIds(S.b), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
+  const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
+  const mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
+  $('kpis').innerHTML = (mo == null ? [
+    [usd(sum(p => p.k.spend)), 'Spend 22 mo'],
+    [num(sum(p => p.k.alarms90)), 'Alarms 90d'],
+    [num(sum(p => p.k.open)), 'Open WOs'],
+  ] : [
+    [usd(sum(p => p.ms[mo])), 'Spend ' + ml],
+    [num(sum(p => p.ma[mo])), 'Alarms ' + ml],
+    [num(sum(p => p.mc[mo])), 'CM WOs ' + ml],
+  ]).concat([
+    [`${crit}<small style="font-size:11px;color:var(--ink-3)"> crit · ${warn} warn</small>`, 'Findings'],
+  ]).map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+}
+function renderLegend() {
+  let h;
+  if (S.metric === 'health') {
+    h = `<span><span class="sw" style="background:color-mix(in srgb, var(--crit) 30%, var(--sheet))"></span>! Critical finding</span>
+         <span><span class="sw" style="background:color-mix(in srgb, var(--warn) 40%, var(--sheet))"></span>▲ Warning</span>
+         <span><span class="sw" style="background:color-mix(in srgb, var(--info) 18%, var(--sheet))"></span>Info (asset swap)</span>
+         <span><span class="sw" style="background:var(--seq0)"></span>No findings</span>`;
+  } else {
+    const fmt = S.metric === 'spend' ? usd : num, mx = maxOf(S.metric);
+    h = `<span>${METRICS()[S.metric].label}${S.month != null ? ' · ' + mlabel(M[S.month]) : ''}:</span>` + [1, 2, 3, 4, 5].map(s => `<span class="sw" style="background:var(--seq${s});margin-right:0"></span>`).join('') +
+        `<span class="mono" style="font-size:11px">0 → ${fmt(mx)} (√ scale, all sites${S.month != null ? ', any month' : ''})</span>`;
+  }
+  if (S.links !== 'off') h += `<span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link ${S.links === 'cool' ? 'cool' : 'power'}" style="opacity:1"/></svg>${S.links === 'all' ? 'Power (red) · cooling (blue)' : S.links === 'power' ? 'Power path' : 'Cooling path'}</span>`;
+  $('legend').innerHTML = h;
+}
+const sevtag = s => `<span class="sevtag ${s}">${s === 'critical' ? '! ' : s === 'warning' ? '▲ ' : 'i '}${s}</span>`;
+function renderFindings() {
+  const fs = D.findings.filter(f => f.id.startsWith(S.b)).sort((a, b) => SEVR[b.sev] - SEVR[a.sev]);
+  $('findList').innerHTML = fs.length ? fs.map(f => `<button class="find" type="button" data-id="${f.id}">
+      <span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span>
+      <span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span class="id">${localKey(f.id)}</span></button>`).join('')
+    : '<div class="note">No findings in this building.</div>';
+  $('portList').innerHTML = D.portfolio.map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : '--warn'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('');
+}
+$('findList').addEventListener('click', e => { const r = e.target.closest('.find'); if (r) select(r.dataset.id); });
+
+/* ---------- detail panel ---------- */
+const TABS = [['overview', 'Overview'], ['flow', 'Flow'], ['graph', 'Connections'], ['events', 'Activity']];
+function select(id) {
+  S.sel = id;
+  if (!id.startsWith(S.b)) S.b = id.slice(0, 5);
+  renderAll();
+  $('panel').classList.add('open'); $('scrim').classList.add('open');
+}
+function closePanel(silent) {
+  S.sel = null; $('panel').classList.remove('open'); $('scrim').classList.remove('open');
+  if (!silent) renderAll();
+}
+$('closeBtn').onclick = () => closePanel();
+$('scrim').onclick = () => closePanel();
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sel) closePanel(); });
+
+function renderPanel() {
+  const id = S.sel;
+  $('empty').hidden = !!id; $('detail').hidden = !id;
+  if (!id) return;
+  const p = P[id];
+  $('dTitle').textContent = `${p.cls}-${id.split('-').pop()}`;
+  $('dCrumb').textContent = [D.names[p.site], p.b, p.area, p.system].join(' › ');
+  $('dTags').innerHTML = `<span class="chip">${esc(CLS[p.cls])}</span><span class="chip">${esc(id)}</span>` + (findBy[id] || []).map(f => sevtag(f.sev)).join('');
+  $('tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" type="button" aria-selected="${S.tab === k}" data-t="${k}">${l}</button>`).join('');
+  const body = $('pbody');
+  body.innerHTML = { overview, flow, graph, events }[S.tab](id, p);
+  body.scrollTop = 0;
+  body.querySelectorAll('[data-spark]').forEach(wireSpark);
+}
+$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.tab = b.dataset.t; renderPanel(); } });
+$('pbody').addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) select(g.dataset.go); });
+
+function overview(id, p) {
+  const k = p.k, fs = findBy[id] || [];
+  const pmlate = k.pm ? Math.round(100 * k.pmlate / k.pm) + '%' : '—';
+  let h = '';
+  if (fs.length) h += `<div>${fs.map(f => `<div class="find" style="cursor:default;padding:6px 0"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}</div>`;
+  h += `<div class="grid4">
+    <div class="stat"><b>${num(k.alarms)}</b><span>Alarms · ${num(k.alarms90)} in 90d</span></div>
+    <div class="stat"><b>${num(k.cm)}</b><span>Corrective WOs</span></div>
+    <div class="stat"><b>${num(k.open)}</b><span>Open WOs</span></div>
+    <div class="stat"><b>${usd(k.spend)}</b><span>Spend · ${usd(k.spend90)} 90d</span></div>
+    <div class="stat"><b>${num(k.labor)}</b><span>Labor hours</span></div>
+    <div class="stat"><b>${pmlate}</b><span>PMs late (${k.pmlate}/${k.pm})</span></div></div>`;
+  h += `<div class="chart"><div class="sect">Alarms per month</div><div class="readout" id="ro-a"></div>${spark(p.ma, 'bar', 'ro-a', v => `${v} alarms`)}</div>`;
+  h += `<div class="chart"><div class="sect">Invoiced spend per month</div><div class="readout" id="ro-s"></div>${spark(p.ms, 'area', 'ro-s', v => usd(v))}</div>`;
+  h += `<div><div class="sect">Equipment in this position</div><dl class="kv"><dt>Asset tag</dt><dd>${esc(p.asset.tag)}</dd><dt>Make / model</dt><dd>${esc(p.asset.mfr)} ${esc(p.asset.model)}</dd><dt>Serial</dt><dd>${esc(p.asset.serial)}</dd><dt>Installed</dt><dd>${esc(p.asset.since)}</dd></dl></div>`;
+  if (p.hist.length > 1) h += `<div><div class="sect">Install history</div><div class="hist">${p.hist.map(x => `<div><i class="${x.to ? '' : 'cur'}"></i><span><span class="mono">${esc(x.tag)}</span> · ${esc(x.mfr)} ${esc(x.model)}<br><span class="note">${x.frm} → ${x.to || 'present'}</span></span></div>`).join('')}</div></div>`;
+  if (p.codes.length) h += `<div><div class="sect">Top alarm codes</div>${p.codes.map(c => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(c.code)}</span><span class="mono">${c.n}</span></div>`).join('')}</div>`;
+  return h;
+}
+
+/* sparkline with tap/hover readout */
+const SPARK = {};
+function spark(vals, kind, roId, fmt) {
+  const W = 320, H = 74, pl = 2, pr = 2, pt = 8, pb = 14, n = vals.length;
+  const mx = Math.max(1, ...vals), bw = (W - pl - pr) / n;
+  const x = i => pl + bw * i + bw / 2, y = v => pt + (H - pt - pb) * (1 - v / mx);
+  const key = 'sp' + Math.random().toString(36).slice(2, 8);
+  SPARK[key] = { vals, fmt, roId, bw, pl, n };
+  let h = `<svg viewBox="0 0 ${W} ${H}" data-spark="${key}" role="img" aria-label="Monthly series, max ${fmt(mx)}">`;
+  h += `<line x1="0" y1="${y(0)}" x2="${W}" y2="${y(0)}" stroke="var(--line-soft)"/><line x1="0" y1="${y(mx)}" x2="${W}" y2="${y(mx)}" stroke="var(--hair)" stroke-dasharray="2 3"/>`;
+  h += `<text x="${W}" y="${y(mx) - 2}" font-size="9" text-anchor="end" fill="var(--ink-3)" font-family="var(--font-mono)">max ${fmt(mx)}</text>`;
+  if (kind === 'bar') {
+    vals.forEach((v, i) => { if (v) { const bh = y(0) - y(v); h += `<rect x="${pl + bw * i + 1}" y="${y(v)}" width="${bw - 2}" height="${bh}" rx="${Math.min(2, bh / 2)}" fill="var(--seq3)"/>`; } });
+  } else {
+    const pts = vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    h += `<polygon points="${x(0)},${y(0)} ${pts} ${x(n - 1)},${y(0)}" fill="var(--seq3)" opacity=".18"/><polyline points="${pts}" fill="none" stroke="var(--seq4)" stroke-width="2" stroke-linejoin="round"/>`;
+    h += `<circle cx="${x(n - 1)}" cy="${y(vals[n - 1])}" r="3.5" fill="var(--seq4)" stroke="var(--sheet)" stroke-width="1.5"/>`;
+  }
+  h += `<text x="0" y="${H - 2}" font-size="9" fill="var(--ink-3)" font-family="var(--font-mono)">${mlabel(M[0])}</text><text x="${W}" y="${H - 2}" font-size="9" text-anchor="end" fill="var(--ink-3)" font-family="var(--font-mono)">${mlabel(M[n - 1])}</text>`;
+  h += `<line class="cross" x1="0" x2="0" y1="${pt - 4}" y2="${y(0)}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/>`;
+  return h + '</svg>';
+}
+function wireSpark(svg) {
+  const s = SPARK[svg.dataset.spark], ro = $(s.roId), cross = svg.querySelector('.cross');
+  const last = s.n - 1;
+  ro.textContent = `${mlabel(M[last])}: ${s.fmt(s.vals[last])}`;
+  const move = e => {
+    const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * 320;
+    const i = Math.max(0, Math.min(s.n - 1, Math.floor((vx - s.pl) / s.bw)));
+    const cx = s.pl + s.bw * i + s.bw / 2;
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+    ro.textContent = `${mlabel(M[i])}: ${s.fmt(s.vals[i])}`;
+  };
+  svg.addEventListener('pointermove', move); svg.addEventListener('pointerdown', move);
+  svg.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); ro.textContent = `${mlabel(M[last])}: ${s.fmt(s.vals[last])}`; });
+}
+
+function flow(id, p) {
+  const f = p.flow, k = p.k;
+  const aw = f['alarm>wo'] || { n: 0 }, al = f['alarm>alert'] || { n: 0 }, wp = f['wo>po'] || { n: 0 }, pi = f['po>invoice'] || { n: 0 };
+  const otherWo = Math.max(0, k.wos - aw.n);
+  const W = 320, maxN = Math.max(k.alarms, k.wos, 1), th = n => Math.max(2, 26 * Math.sqrt(n / maxN));
+  const box = (y, title, big, sub, accent) => `<g><rect x="70" y="${y}" width="180" height="46" rx="6" fill="var(--sheet)" stroke="var(${accent || '--line'})" stroke-width="1.4"/>
+     <text x="82" y="${y + 18}" font-size="11" font-weight="600" fill="var(--ink)">${title}</text>
+     <text x="238" y="${y + 19}" font-size="14" font-weight="600" text-anchor="end" fill="var(--ink)" font-family="var(--font-mono)">${big}</text>
+     <text x="82" y="${y + 36}" font-size="10" fill="var(--ink-3)">${sub}</text></g>`;
+  const pipe = (y1, y2, n, label, label2) => `<rect x="${160 - th(n) / 2}" y="${y1}" width="${th(n)}" height="${y2 - y1}" fill="var(--seq3)" opacity=".55"/>
+     <text x="${168 + th(n) / 2}" y="${(y1 + y2) / 2 - 1}" font-size="10" fill="var(--ink-2)">${label}</text>
+     <text x="${168 + th(n) / 2}" y="${(y1 + y2) / 2 + 11}" font-size="10" fill="var(--ink-3)">${label2 || ''}</text>`;
+  const conv = k.sev ? Math.round(100 * (k.sev - k.orph) / k.sev) : 0;
+  let s = `<svg viewBox="0 0 ${W} 360" role="img" aria-label="Alarm to invoice flow" style="width:100%;height:auto;display:block">`;
+  s += box(0, 'Alarms', num(k.alarms), `${num(k.sev)} critical/major · ${num(al.n)} paged`, k.orph / Math.max(k.sev, 1) > .5 ? '--crit' : null);
+  s += pipe(46, 100, aw.n, `${num(aw.n)} → work orders`, `${conv}% of crit/major · ${aw.lag ?? '—'} h`);
+  // leak branch
+  s += `<path d="M250 23 H314 V100" fill="none" stroke="var(--crit)" stroke-width="${Math.max(1.5, th(k.orph) * .6)}" opacity=".5"/>
+        <text x="314" y="114" font-size="10" text-anchor="end" fill="var(--crit)" font-weight="600">No WO</text>
+        <text x="314" y="127" font-size="10" text-anchor="end" fill="var(--crit)" font-family="var(--font-mono)">${num(k.orph)}</text>`;
+  // inflow of PM / rounds
+  s += `<path d="M24 74 V123 H70" fill="none" stroke="var(--seq2)" stroke-width="${th(otherWo) * .6}" opacity=".6"/>
+        <text x="4" y="66" font-size="10" fill="var(--ink-3)">+${num(otherWo)} PM / rounds</text>`;
+  s += box(100, 'Work orders', num(k.wos), `${num(k.cm)} corrective · ${num(k.open)} open`);
+  s += pipe(146, 200, wp.n, `${num(wp.n)} → purchase orders`, `avg ${wp.lag ?? '—'} h after WO`);
+  s += box(200, 'Purchase orders', usd(wp.amt || 0), `${num(wp.n)} POs committed`);
+  s += pipe(246, 300, pi.n, `${num(pi.n)} invoices`, `avg ${pi.lag != null ? Math.round(pi.lag / 24) : '—'} days after PO`);
+  s += box(300, 'Invoices', usd(pi.amt || 0), `${pi.amt && wp.amt ? Math.round(100 * pi.amt / wp.amt) + '% of PO value' : '—'}`);
+  s += '</svg>';
+  return `<div class="note">Every record below is linked to this position through the edges table. Pipe width shows volume; lags are averages over Jan 2025 – Oct 2026.</div>${s}`;
+}
+
+function graph(id, p) {
+  const u1 = up[id] || [], u2 = [...new Set(u1.flatMap(x => up[x] || []))];
+  const d1 = down[id] || [], d2 = [...new Set(d1.flatMap(x => down[x] || []))];
+  const rows = [['Upstream ·2', u2], ['Upstream', u1], ['Selected', [id]], ['Downstream', d1], ['Downstream ·2', d2]].filter(r => r[1].length);
+  const W = 320, rowH = 62, H = rows.length * rowH;
+  const pos = {};
+  rows.forEach(([, ids], r) => { const n = ids.length, bw = Math.min(80, (W - 60) / n - 6); ids.forEach((x, i) => pos[x] = { x: 56 + ((W - 56) / n) * (i + .5), y: r * rowH + 26, w: bw }); });
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Connected equipment" style="width:100%;height:auto;display:block">`;
+  D.feeds.forEach(([f, t]) => { if (pos[f] && pos[t]) { const a = pos[f], b = pos[t]; const pw = POWER.has(P[f].cls);
+    s += `<path d="M${a.x} ${a.y + 14} C${a.x} ${a.y + 36} ${b.x} ${b.y - 36} ${b.x} ${b.y - 14}" fill="none" stroke="var(${pw ? '--crit' : '--info'})" stroke-width="1.6" stroke-dasharray="${pw ? '4 3' : '2 3'}" opacity=".7"/>`; } });
+  rows.forEach(([label], r) => s += `<text x="0" y="${r * rowH + 30}" font-size="9" fill="var(--ink-3)">${label}</text>`);
+  Object.entries(pos).forEach(([x, q]) => {
+    const [fill, ink] = fillFor(x), me = x === id, w = worst(x);
+    s += `<g class="gnode" ${me ? '' : `data-go="${x}" role="button" tabindex="0"`}><rect x="${q.x - q.w / 2}" y="${q.y - 14}" width="${q.w}" height="28" rx="5" fill="${me ? 'var(--accent)' : fill}" stroke="var(${me ? '--sel' : '--line'})" stroke-width="${me ? 2 : 1.2}"/>
+      <text x="${q.x}" y="${q.y + 4}" font-size="10" font-weight="600" text-anchor="middle" font-family="var(--font-mono)" fill="${me ? '#fff' : ink}">${P[x].cls}-${x.split('-').pop()}${w === 3 ? ' !' : w === 2 ? ' ▲' : ''}</text></g>`;
+  });
+  s += '</svg>';
+  const isPower = POWER.has(p.cls);
+  return `<div class="note">${isPower ? 'Power' : 'Cooling'} path through this position, two hops each way. Tap a box to open that equipment. Its full path is also highlighted on the drawing.</div>${s}
+    <div class="legend"><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link power" style="opacity:1"/></svg>Power</span><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link cool" style="opacity:1"/></svg>Cooling</span><span>! critical · ▲ warning finding</span></div>`;
+}
+
+const EVT = { 'alarm.raised': 'Alarm', 'alert.sent': 'Alert sent', 'wo.opened': 'WO opened', 'wo.closed': 'WO closed', 'activity.logged': 'Labor', 'po.created': 'PO created', 'invoice.received': 'Invoice' };
+function events(id, p) {
+  return `<div class="note">Latest ${p.ev.length} events at this position, all sources.</div><ul class="tl">${p.ev.map(e => {
+    const amt = e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a);
+    return `<li><span class="when">${e.ts.slice(0, 10)}<br>${e.ts.slice(11)}</span><span class="what"><b>${EVT[e.t] || e.t}</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">${esc(e.e)}</span><div>${esc(e.x)}</div></span><span class="amt">${amt}</span></li>`;
+  }).join('')}</ul>`;
+}
+
+let playTimer = null;
+function setMonth(m) {
+  S.month = m;
+  if (m != null && S.metric === 'health') S.metric = 'alarms';
+  $('mSlider').value = m ?? 21;
+  $('mLabel').textContent = m == null ? 'All time' : mlabel(M[m]);
+  $('allBtn').setAttribute('aria-pressed', m == null);
+  renderControls(); renderKpis(); drawPlan(); renderLegend();
+}
+function stopPlay() { clearInterval(playTimer); playTimer = null; $('playBtn').textContent = '▶'; $('playBtn').setAttribute('aria-label', 'Play months'); }
+$('mSlider').addEventListener('input', e => { stopPlay(); setMonth(+e.target.value); });
+$('allBtn').onclick = () => { stopPlay(); setMonth(null); };
+$('playBtn').onclick = () => {
+  if (playTimer) return stopPlay();
+  let m = S.month == null || S.month >= M.length - 1 ? 0 : S.month;
+  setMonth(m);
+  $('playBtn').textContent = '❚❚'; $('playBtn').setAttribute('aria-label', 'Pause');
+  playTimer = setInterval(() => { m++; if (m >= M.length) return stopPlay(); setMonth(m); }, 650);
+};
+function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
+
+// desktop opens in a working state: show the first critical finding in the current building
+if (matchMedia('(min-width: 900px)').matches) { const f = D.findings.find(x => x.id.startsWith(S.b) && x.sev === 'critical'); if (f) S.sel = f.id; }
+renderAll();
+})();
+</script>
+</body>
+</html>
