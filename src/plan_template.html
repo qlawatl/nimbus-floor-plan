@@ -307,7 +307,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v7 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v7.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -982,7 +982,7 @@ function pinBurst(b) {
 
 /* ---------- sub-data window ---------- */
 const SW = { id: null, m: null, item: null };
-function openSub(id, m, item, from) {
+function openSub(id, m, item, from) { opened();
   Object.assign(SW, { id, m, item, from: from || null });
   $('swBack').hidden = !SW.from;
   renderSub();
@@ -1399,7 +1399,7 @@ function lcList(pid) {
     return `<button type="button" class="lcrow" data-ent="${esc(ent)}"><span class="lt"><b>${esc(label)}</b><small>${(c.a ? c.a[1] : c.w[3]).slice(0, 10)}${t1 > t0 ? ' · ' + dur(t1 - t0) + ' span' : ''}</small></span><span class="dots">${lcDots(c)}</span></button>`;
   }).join('')}</div>`;
 }
-function openLC(pid, ent) {
+function openLC(pid, ent) { opened();
   const c = chainFor(pid, ent);
   if (!c) return toast('No linked lifecycle for that record');
   const st = lcSteps(c), timed = st.filter(x => x.t), t0 = timed[0].t, tEnd = timed[timed.length - 1].t, span = Math.max(1, tEnd - t0);
@@ -1531,8 +1531,8 @@ function setHint() {
   const depth = NAV.length, v = NAV[depth - 1];
   CUR.svg.querySelector('.hint').textContent = `${depth > 1 ? depth + ' levels in · ' : ''}Tap to drill in · hold for details · double-tap to go back`;
 }
-function openNav(id) { NAV = [{ id }]; showNav(); }
-function navPush(v) { NAV.push(v); showNav(); if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {} }
+function openNav(id) { opened(); NAV = [{ id }]; showNav(); }
+function navPush(v) { opened(); NAV.push(v); showNav(); if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {} }
 function navBack() {
   if (!CUR) return;
   if (CUR.peekEl) return closeDetails();
@@ -1541,7 +1541,7 @@ function navBack() {
   showNav();
 }
 // details window: records for a bubble, or a unit summary for a unit bubble
-function openDetails(t) {
+function openDetails(t) { opened();
   if (!CUR || CUR.peekEl) return;
   if (t.kind === 'pos') openUnitPeek(CUR, t.id); else openPeek(CUR, t);
   livePeek(CUR);
@@ -1599,7 +1599,7 @@ function lineageSVG(aid, site) {
   return `<defs><marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker>
     <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--ink-3)"/></marker></defs><g class="linlayer">${h}</g>`;
 }
-function openLineage(aid) {
+function openLineage(aid) { opened();
   const a = D.lineage[aid]; if (!a) return toast('No movement history for this asset');
   if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); }
   if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (S.sel) closePanel(true);
@@ -1631,7 +1631,7 @@ function focusStep(k) {
 }
 $('linBody').addEventListener('click', e => { const li = e.target.closest('li[data-step]'); if (li) focusStep(+li.dataset.step); });
 // storeroom stock: what's on the shelves now, each with its lineage
-function openStock(sr) {
+function openStock(sr) { opened();
   const items = Object.entries(D.lineage).map(([aid, a]) => ({ aid, a, loc: lastLoc(a) })).filter(x => x.loc && x.loc.startsWith(sr));
   $('swTitle').textContent = `${D.stores[sr] ? D.stores[sr].name : sr}`;
   $('swCrumb').textContent = `${items.length} units on hand · tap one to see where it has been`;
@@ -1659,12 +1659,16 @@ function goHome() {
   toast('Main page');
   if (navigator.vibrate) try { navigator.vibrate([6, 30, 6, 30, 6]); } catch (e) {}
 }
-const TT = { downs: [], taps: [] };
+const TT = { downs: [], taps: [], opened: 0 };
+const opened = () => { TT.opened = Date.now(); TT.taps = []; };
 document.addEventListener('pointerdown', e => { TT.down = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
 document.addEventListener('pointerup', e => {
   const d = TT.down; if (!d || Date.now() - d.t > 350 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) { TT.taps = []; return; }
   const now = Date.now();
-  TT.taps = TT.taps.filter(x => now - x.t < 700 && Math.hypot(e.clientX - x.x, e.clientY - x.y) < 60);
+  // a triple-tap is three quick taps in one spot (each under 300 ms apart); a tap that opened something starts a new count
+  const lastT = TT.taps.length ? TT.taps[TT.taps.length - 1].t : 0;
+  if (now - lastT > 300 || TT.opened > lastT) TT.taps = [];
+  TT.taps = TT.taps.filter(x => Math.hypot(e.clientX - x.x, e.clientY - x.y) < 60);
   TT.taps.push({ t: now, x: e.clientX, y: e.clientY });
   if (TT.taps.length >= 3) { TT.taps = []; SUPPRESS = now + 450; e.stopPropagation(); goHome(); }
 }, true);

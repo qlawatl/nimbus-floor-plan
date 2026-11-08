@@ -2,6 +2,9 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v7.1 — 2026-11-08 · branch `release/v7.1`
+- **Fix:** double-tapping to close a record's lifecycle a second time could send you to the main page instead. Tapping a record and then double-tapping to close was being counted as a triple-tap. A triple-tap now requires three quick taps (each under 300 ms apart) in one spot, and any tap that opens something (lifecycle, details, records, lineage, a drill-down) starts a new count.
+
 ## v7 — 2026-11-08 · branch `release/v7`
 - **Site map.** Tap "‹ Zoom out: site map" above the drawing to see both buildings on the campus (live miniatures with the same coloring), the site storeroom with its bin grid and quarantine area, the receiving dock, and the offsite band: vendor, central warehouse, repair depot and the other site's storeroom. Tap a building to zoom back into it.
 - **Lineage button on every asset** (in the hold-for-details window, in the panel's Overview, and on storeroom rows). It zooms out to the site map and draws the asset's path in numbered steps: vendor → central warehouse → storeroom bin → installed position → quarantine → repair depot → back to the storeroom → reinstalled. Steps from the last 6 months are solid blue and older steps are dashed. "NOW" pulses on the current location and "6 MO AGO" marks where the asset was on 2026-04-30. The lineage window has Now, 6 months ago, moves in the last 6 months, and the full history; tap a step to find it on the map, double-tap to close.
