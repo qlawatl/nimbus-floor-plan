@@ -2,6 +2,9 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v7.3 — 2026-11-08 · branch `release/v7.3`
+- **Fix:** while a details list was open, tapping the ‹ Back circle (or anywhere outside the list) did nothing. Now it closes the list and returns to the bubbles. Double-tap and the breadcrumbs still work as before.
+
 ## v7.2 — 2026-11-08 · branch `release/v7.2`
 - **Breadcrumbs** at the top left while you're drilling: building › unit or room › metric › … › details › Lifecycle. Every hop before the current one is a link: tap it to jump straight back to that level (it closes anything opened above it). The bar is above the windows, so it works from a lifecycle too. The Back circle moved below it.
 - **Removed the blue instruction text** at the bottom of the detail, records, lifecycle and lineage windows, and the hint line over the bubbles.
