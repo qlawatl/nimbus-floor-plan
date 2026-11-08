@@ -2,6 +2,11 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v8.1 — 2026-11-08 · branch `release/v8.1`
+- **Timeline at the top of every records list:** the details list, the records window and the table grid. It's a monthly bar chart (Jan 2025 – Oct 2026) of exactly the records in that list, with the peak month labeled. In the details and records lists it stays put while you scroll.
+  - **Tap a month** in a list to jump to its first record there. It loads more pages automatically if needed and highlights the row.
+  - **Tap a month** in the table to filter the grid to that month (a chip appears; × clears it). Tap again to clear.
+
 ## v8 — 2026-11-08 · branch `release/v8`
 - **Table view.** The **▦ Table** button at the end of the breadcrumbs shows your current drill position as a grid, and **◎ Bubbles** switches back. Both follow the same navigation and breadcrumbs, so switching never loses your place.
   - **Unit or room level:** one row per record type (alarms, alerts, WOs, POs, invoices, labor, findings) with counts and a summary, plus the connected units (↑ feeds / ↓ fed by) or the units in the room. Tap a row to drill in.

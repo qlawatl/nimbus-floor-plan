@@ -213,6 +213,17 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tbl-tools input { flex: 1 1 180px; height: 36px; border-radius: 8px; border: 1px solid var(--line-soft); background: var(--sheet); color: var(--ink); padding: 0 10px; font: 14px var(--font-ui); }
 .chip.on { border: 1px solid var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); border-radius: 14px; padding: 4px 10px; font: 600 12px var(--font-ui); cursor: pointer; }
+.tl-chart { position: sticky; top: -4px; z-index: 2; background: var(--sheet); padding: 6px 0 4px; border-bottom: 1px solid var(--hair); margin-bottom: 4px; }
+.tblbody .tl-chart { position: static; border: 1px solid var(--hair); border-radius: 10px; padding: 8px 8px 4px; }
+.tl-chart svg { width: 100%; height: auto; display: block; }
+.tl-base { stroke: var(--line-soft); }
+.tl-hit { fill: transparent; cursor: pointer; }
+.tl-bar { fill: var(--seq3); }
+.tl-m:hover .tl-bar { fill: var(--seq4); }
+.tl-m.on .tl-bar { fill: var(--accent); } .tl-m.on .tl-hit { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
+.tl-ax { font: 600 8px var(--font-mono); fill: var(--ink-3); }
+li.flash { animation: flash 1.6s ease; }
+@keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 100% { background: transparent; } }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -347,7 +358,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v8 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v8.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -932,6 +943,33 @@ function loadMore(container, m, rows, hitKey) {
   const now = shown + next.length;
   btn.outerHTML = now < rows.length ? moreBtn(now, rows.length) : `<div class="endnote">All ${rows.length} shown</div>`;
 }
+// timeline: records per month for the list below it; tap a month to jump there (or filter, in the table)
+function tlChart(rows, sel) {
+  const cnt = M.map(() => 0), idx = {}; M.forEach((m, i) => idx[m] = i);
+  rows.forEach(r => { const i = idx[String(r[0]).slice(0, 7)]; if (i != null) cnt[i]++; });
+  const W = 340, H = 58, pl = 4, pr = 4, top = 12, base = 42, bw = (W - pl - pr) / M.length, mx = Math.max(1, ...cnt);
+  const peak = cnt.indexOf(mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Records per month, ${M[0]} to ${M[M.length - 1]}">`;
+  s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" class="tl-base"/>`;
+  cnt.forEach((c, i) => {
+    const h = c ? Math.max(2, (base - top) * c / mx) : 0, x = pl + i * bw;
+    s += `<g class="tl-m${sel === M[i] ? ' on' : ''}${c ? '' : ' empty'}" data-mon="${M[i]}"><rect x="${x}" y="${top - 6}" width="${bw}" height="${base - top + 12}" class="tl-hit"/>
+      ${c ? `<rect x="${x + 1}" y="${base - h}" width="${bw - 2}" height="${h}" rx="${Math.min(2, h / 2)}" class="tl-bar"/>` : ''}<title>${mlabel(M[i])}: ${c}</title></g>`;
+  });
+  s += `<text x="${pl}" y="${H - 4}" class="tl-ax">${mlabel(M[0])}</text><text x="${W - pr}" y="${H - 4}" class="tl-ax" text-anchor="end">${mlabel(M[M.length - 1])}</text>`;
+  if (cnt[peak]) s += `<text x="${Math.min(W - 40, Math.max(30, pl + peak * bw + bw / 2))}" y="${top - 4}" class="tl-ax" text-anchor="middle">peak ${cnt[peak]} · ${mlabel(M[peak])}</text>`;
+  return `<div class="tl-chart">${s}</svg></div>`;
+}
+function jumpMonth(container, m, rows, hitKey, mon) {
+  const i = rows.findIndex(r => String(r[0]).startsWith(mon));
+  if (i < 0) return toast(`No records in ${mlabel(mon)}`);
+  const ul = container.querySelector('ul.paged');
+  while (ul && ul.children.length <= i && container.querySelector('[data-more]')) loadMore(container, m, rows, hitKey);
+  container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === mon));
+  const li = ul && ul.children[i]; if (!li) return;
+  container.querySelectorAll('li.flash').forEach(x => x.classList.remove('flash'));
+  li.classList.add('flash'); li.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
 function openPeek(b, t) {
   const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
   let body = '', sub = '';
@@ -942,13 +980,13 @@ function openPeek(b, t) {
     sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
   } else {
     const all = recs(m, id), hit = item ? all.filter(r => r[1] === item) : all, rows = hit.length ? hit : all;
-    body = pagedList(m, rows, null);
+    body = tlChart(rows) + pagedList(m, rows, null);
     sub = `${rows.length} record${rows.length === 1 ? '' : 's'} · ${titleOf(id)} · newest first`;
     b.__pg = { m, rows };
   }
   const el = document.createElement('div');
   el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
-  el.addEventListener('click', e => { if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
+  el.addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && b.__pg) return jumpMonth(el, b.__pg.m, b.__pg.rows, null, mo.dataset.mon); if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
     <div class="pk-f">Lift your finger to keep this open</div>`;
@@ -1072,11 +1110,11 @@ function renderSub() {
     const showRows = hitRows.length ? hitRows : all;
     SW.rows = showRows;
     h += `<div class="sect" style="margin-top:6px">Records${item ? ` · ${esc(item)}` : ''} · ${showRows.length} · newest first</div>`;
-    h += pagedList(m, showRows, item);
+    h += tlChart(showRows) + pagedList(m, showRows, item);
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swBody').addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && SW.rows) return jumpMonth($('swBody'), SW.m, SW.rows, SW.item, mo.dataset.mon); const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
@@ -1553,7 +1591,7 @@ function showNav() {
   CUR = b; b.pinned = true; b.g.style.pointerEvents = 'auto'; b.g.__b = b;
   if (v.m) { const ph = b.hits.find(h => h.m === v.m); if (ph) openLevel2(b, ph); }
   setHint();
-  if (S.table) { Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE }); renderTable(); }
+  if (S.table) { Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE, mon: null }); renderTable(); }
   gestures(b.g, {
     hitAt: hitAtBurst,
     tap: t => {
@@ -1598,7 +1636,7 @@ $('crumbs').addEventListener('click', e => {
   NAV = NAV.slice(0, depth + 1); showNav();
 });
 /* ---------- table view: the same drill state as a sortable, filterable grid ---------- */
-const TB = { item: null, q: '', sort: null, dir: -1, shown: 25 };
+const TB = { item: null, q: '', sort: null, dir: -1, shown: 25, mon: null };
 const TCOLS = {
   alarms: [['When', 0], ['Code', 1], ['Severity', 2], ['Message', 3], ['WO', 4]],
   alerts: [['Sent', 0], ['Team · channel', 1], ['Alert', 2], ['Alarm', 3], ['Ack', 4, 'ack']],
@@ -1610,7 +1648,7 @@ const TCOLS = {
 function setTable(on) {
   S.table = on && !!CUR;
   if (S.table) {
-    Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE });
+    Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE, mon: null });
     if (CUR.peekEl) { TB.item = CUR.peekEl.dataset.item || null; closePeek(CUR); }
     renderTable(); $('tblwin').hidden = false; $('tblwin').scrollTop = 0;
   } else $('tblwin').hidden = true;
@@ -1650,11 +1688,13 @@ function renderTable() {
   const cols = (Z ? [['Unit', -1]] : []).concat(TCOLS[m]);
   let rows = (Z ? ZONES[id].members : [id]).flatMap(pid => recs(m, pid).map(r => ({ pid, r })));
   if (TB.item) rows = rows.filter(x => Z ? x.pid === TB.item : x.r[1] === TB.item);
+  const monRows = rows; if (TB.mon) rows = rows.filter(x => String(x.r[0]).startsWith(TB.mon));
   if (TB.q) { const q = TB.q.toLowerCase(); rows = rows.filter(x => (x.pid + ' ' + x.r.join(' ')).toLowerCase().includes(q)); }
   const sc = TB.sort ?? 0, val = x => sc === -1 ? x.pid : x.r[sc];
   rows.sort((a, b) => { const A = val(a), B = val(b); return (A == null) - (B == null) || (A < B ? -1 : A > B ? 1 : 0) * (TB.sort == null ? -1 : TB.dir); });
   const shown = rows.slice(0, TB.shown);
-  h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
+  h += tlChart(monRows.map(x => x.r), TB.mon);
+  h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}${TB.mon ? `<button type="button" class="chip on" data-clearmon>${mlabel(TB.mon)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
     <div class="tscroll"><table class="tg recs"><thead><tr>${cols.map(([l, i, kind]) => `<th data-sort="${i}" class="${kind === 'usd' || kind === 'num' ? 'r' : ''}">${l}${(TB.sort ?? 0) === i ? (TB.sort == null || TB.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>
     ${shown.map(({ pid, r }) => { const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
       return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : ''}">${esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
@@ -1668,6 +1708,8 @@ $('tblBody').addEventListener('click', e => {
   const dr = T.closest('[data-drill]'); if (dr) return navPush({ id: NAV[NAV.length - 1].id, m: dr.dataset.drill });
   const un = T.closest('[data-unit]'); if (un) return navPush({ id: un.dataset.unit });
   if (T.closest('[data-clear]')) { TB.item = null; TB.shown = PAGE; return renderTable(); }
+  if (T.closest('[data-clearmon]')) { TB.mon = null; TB.shown = PAGE; return renderTable(); }
+  const mo = T.closest('[data-mon]'); if (mo) { TB.mon = TB.mon === mo.dataset.mon ? null : mo.dataset.mon; TB.shown = PAGE; return renderTable(); }
   if (T.closest('[data-tmore]')) { TB.shown += PAGE; return renderTable(); }
   const th = T.closest('[data-sort]'); if (th) { const i = +th.dataset.sort; if ((TB.sort ?? 0) === i) TB.dir = TB.sort == null ? 1 : -TB.dir; else TB.dir = 1; TB.sort = i; return renderTable(); }
   const it = T.closest('[data-item]'); if (it) { TB.item = TB.item === it.dataset.item ? null : it.dataset.item; TB.shown = PAGE; return renderTable(); }
