@@ -2,6 +2,9 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v6.1 — 2026-11-08 · branch `release/v6.1`
+- The lifecycle and records windows close with a **double-tap**. Their × buttons are removed, and a "Double-tap to close" footer shows on each. Tapping a record still opens its lifecycle; ‹ Back links stay.
+
 ## v6 — 2026-11-08 · branch `release/v6`
 **New tap model, used everywhere from the first tap on the drawing:**
 
