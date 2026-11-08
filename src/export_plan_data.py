@@ -150,21 +150,20 @@ FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_
 bd_lab = df("""SELECT w.position_id id, c.technician k, count(*) n, round(sum(c.labor_hours), 1) hrs
 FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id) GROUP BY 1, 2""")
 
-rec_alarm = df("""SELECT * FROM (SELECT x.position_id id, strftime(a.raised_ts, '%Y-%m-%d %H:%M') ts, a.alarm_code k, a.severity sev, a.message msg, w.wo_id wo,
-  row_number() OVER (PARTITION BY x.position_id, a.alarm_code ORDER BY a.raised_ts DESC) rn
-  FROM bms_alarms a JOIN alarm_xwalk x USING (alarm_id) LEFT JOIN cmms_work_orders w ON w.source_alarm_id = a.alarm_id) WHERE rn <= 1000000""")
-rec_alert = df("""SELECT * FROM (SELECT x.position_id id, strftime(l.sent_ts, '%Y-%m-%d %H:%M') ts, l.team || ' · ' || l.channel k, l.alert_id aid, l.alarm_id, l.acknowledged ack,
-  row_number() OVER (PARTITION BY x.position_id, l.team, l.channel ORDER BY l.sent_ts DESC) rn
-  FROM notify_alerts l JOIN alarm_xwalk x USING (alarm_id)) WHERE rn <= 1000000""")
-rec_wo = df("""SELECT * FROM (SELECT position_id id, strftime(opened_ts, '%Y-%m-%d %H:%M') ts, wo_id wid, wo_type || ' ' || priority k, status, description d,
-  row_number() OVER (PARTITION BY position_id, wo_type, priority ORDER BY opened_ts DESC) rn FROM cmms_work_orders) WHERE rn <= 1000000""")
-rec_po = df("""SELECT * FROM (SELECT w.position_id id, strftime(p.created_ts, '%Y-%m-%d') ts, p.po_number pid, p.vendor k, p.amount amt, p.line_description d,
-  row_number() OVER (PARTITION BY w.position_id, p.vendor ORDER BY p.created_ts DESC) rn FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 1000000""")
-rec_inv = df("""SELECT * FROM (SELECT w.position_id id, strftime(i.invoice_date, '%Y-%m-%d') ts, i.invoice_id iid, i.vendor k, i.amount amt, i.po_number po, i.memo d,
-  row_number() OVER (PARTITION BY w.position_id, i.vendor ORDER BY i.invoice_date DESC) rn
-  FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_orders w ON w.wo_id = p.wo_id) WHERE rn <= 1000000""")
-rec_lab = df("""SELECT * FROM (SELECT w.position_id id, strftime(c.logged_ts, '%Y-%m-%d') ts, c.technician k, c.labor_hours hrs, c.note d, c.wo_id wid,
-  row_number() OVER (PARTITION BY w.position_id, c.technician ORDER BY c.logged_ts DESC) rn FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id)) WHERE rn <= 1000000""")
+# full record lists, newest first; extra columns let the page assemble any lifecycle on demand
+rec_alarm = df("""SELECT x.position_id id, strftime(a.raised_ts, '%Y-%m-%d %H:%M') ts, a.alarm_code k, a.severity sev, a.message msg, w.wo_id wo,
+  a.alarm_id aid, strftime(a.cleared_ts, '%Y-%m-%d %H:%M') cleared_t
+  FROM bms_alarms a JOIN alarm_xwalk x USING (alarm_id) LEFT JOIN cmms_work_orders w ON w.source_alarm_id = a.alarm_id""")
+rec_alert = df("""SELECT x.position_id id, strftime(l.sent_ts, '%Y-%m-%d %H:%M') ts, l.team || ' · ' || l.channel k, l.alert_id aid, l.alarm_id, l.acknowledged::INT ack
+  FROM notify_alerts l JOIN alarm_xwalk x USING (alarm_id)""")
+rec_wo = df("""SELECT position_id id, strftime(opened_ts, '%Y-%m-%d %H:%M') ts, wo_type || ' ' || priority k, wo_id wid, status, description d,
+  strftime(closed_ts, '%Y-%m-%d %H:%M') closed_t, strftime(due_ts, '%Y-%m-%d %H:%M') due_t FROM cmms_work_orders""")
+rec_po = df("""SELECT w.position_id id, strftime(p.created_ts, '%Y-%m-%d %H:%M') ts, p.vendor k, p.po_number pid, p.amount amt, p.line_description d, p.wo_id wid
+  FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id)""")
+rec_inv = df("""SELECT w.position_id id, strftime(i.invoice_date, '%Y-%m-%d') || ' 12:00' ts, i.vendor k, i.invoice_id iid, i.amount amt, i.po_number po
+  FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_orders w ON w.wo_id = p.wo_id""")
+rec_lab = df("""SELECT w.position_id id, strftime(c.logged_ts, '%Y-%m-%d %H:%M') ts, c.technician k, c.labor_hours hrs, c.note d, c.wo_id wid
+  FROM cmms_activities c JOIN cmms_work_orders w USING (wo_id)""")
 
 def grp(frame, cols):
     out = {}
@@ -193,6 +192,7 @@ def sidx(s):
     return SDI[s]
 T0 = pd.Timestamp("2024-12-01")
 def tmin(s): return int((pd.Timestamp(s) - T0).total_seconds() // 60)
+ID_COLS = {"wo", "wid", "aid", "alarm_id", "pid", "iid", "po"}   # "WO-3006232" -> 3006232; the page restores the prefix
 def enc(frame, cols, str_cols):
     out = {}
     for pid, g in frame.sort_values("ts", ascending=False).groupby("id", sort=False):
@@ -201,16 +201,28 @@ def enc(frame, cols, str_cols):
             row = []
             for c, v in zip(cols, r):
                 if c == "ts": row.append(tmin(v))
+                elif c in ID_COLS: row.append(None if v is None or (isinstance(v, float) and np.isnan(v)) else int(str(v).split("-")[1]))
+                elif c.endswith("_t"): row.append(None if v is None or (isinstance(v, float) and np.isnan(v)) else tmin(v))
                 elif c in str_cols: row.append(sidx(v))
                 else: row.append(nn(v) if not isinstance(v, str) else v)
             rows.append(row)
+        # ts: first row absolute, then minutes back from the previous row; other times: minutes after this row's ts
+        prev = None
+        for row in rows:
+            t0 = row[0]
+            for j, c in enumerate(cols):
+                if c.endswith("_t") and row[j] is not None: row[j] = row[j] - t0
+            row[0] = t0 if prev is None else prev - t0
+            prev = t0
+            for j, v in enumerate(row):
+                if isinstance(v, float) and v.is_integer(): row[j] = int(v)
         out[pid] = rows
     return out
 REC = dict(
-    alarms=enc(rec_alarm, ["ts", "k", "sev", "msg", "wo"], {"k", "sev", "msg"}),
+    alarms=enc(rec_alarm, ["ts", "k", "sev", "msg", "wo", "aid", "cleared_t"], {"k", "sev", "msg"}),
     alerts=enc(rec_alert, ["ts", "k", "aid", "alarm_id", "ack"], {"k"}),
-    wos=enc(rec_wo, ["ts", "k", "wid", "status", "d"], {"k", "status", "d"}),
-    po=enc(rec_po, ["ts", "k", "pid", "amt", "d"], {"k", "d"}),
+    wos=enc(rec_wo, ["ts", "k", "wid", "status", "d", "closed_t", "due_t"], {"k", "status", "d"}),
+    po=enc(rec_po, ["ts", "k", "pid", "amt", "d", "wid"], {"k", "d"}),
     inv=enc(rec_inv, ["ts", "k", "iid", "amt", "po"], {"k"}),
     labor=enc(rec_lab, ["ts", "k", "hrs", "d", "wid"], {"k", "d"}),
 )
@@ -288,12 +300,10 @@ for r in pos.itertuples():
         mc=[int(x) for x in cmpiv.loc[pid]] if pid in cmpiv.index else [0] * len(MONTHS),
         flow=fl,
         codes=[dict(code=x.code, n=int(x.n)) for x in codes[codes.id == pid].itertuples()],
-        ev=[dict(ts=e.ts, t=e.t, e=e.e, x=e.text, a=None if pd.isna(e.amount) else round(float(e.amount), 1))
-            for e in recent[recent.id == pid].itertuples()],
     )
 
 data = dict(months=MONTHS, positions=P, feeds=feeds.values.tolist(), names=dict(zip(names.id, names.name)),
-            findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD, chains=CH,
+            findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD,
             asof="2026-10-31")
 json.dump(data, open(OUT, "w"), separators=(",", ":"), default=float)
 print(len(json.dumps(data)) // 1024, "KB;", len(findings), "position findings;", len(portfolio), "portfolio findings")

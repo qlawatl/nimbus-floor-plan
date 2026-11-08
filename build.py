@@ -7,7 +7,9 @@ p = lambda *a: os.path.join(ROOT, *a)
 if "--regen" in sys.argv:
     subprocess.run([sys.executable, p("src", "generate.py"), p("build", "nimbus_ops")], check=True)
     subprocess.run([sys.executable, p("src", "export_plan_data.py"), p("build", "nimbus_ops", "ops.duckdb"), p("data", "plan_data.json")], check=True)
-data = open(p("data", "plan_data.json")).read().replace("</", "<\\/")
-html = open(p("src", "plan_template.html")).read().replace("/*__DATA__*/", data)
+import base64, gzip
+raw = open(p("data", "plan_data.json"), "rb").read()
+data = base64.b64encode(gzip.compress(raw, 9)).decode()   # page unpacks with DecompressionStream
+html = open(p("src", "plan_template.html")).read().replace("/*__DATAZ__*/", data)
 open(p("index.html"), "w").write(html)
 print(f"index.html written ({len(html) // 1024} KB)")

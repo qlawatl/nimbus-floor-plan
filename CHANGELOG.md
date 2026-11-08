@@ -2,6 +2,14 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v6.4 — 2026-11-08 · branch `release/v6.4`
+**The page is 3.2 MB → 0.8 MB, about 4× smaller.**
+- Data ships gzip-compressed and base64-encoded inside the page. The browser unpacks it on load with `DecompressionStream` (iOS 16.4+ / any current browser). The page is still one file and still works offline.
+- Pre-built lifecycles are no longer shipped (−870 KB). The page assembles any lifecycle on demand from the record lists, so **every record now has a lifecycle**, not just the most recent 10 alarms and 6 WOs per unit.
+- Per-unit activity lists are no longer shipped (−280 KB). They're derived from the same records.
+- Records are compactly encoded: timestamps are stored as minutes back from the previous row, close/due/cleared times relative to the row, IDs as numbers (the prefix is restored on load), and repeated text through a shared string table.
+- Records gained link fields (alarm ID and cleared time, WO closed/due, PO → WO) so lifecycles can be rebuilt.
+
 ## v6.3 — 2026-11-08 · branch `release/v6.3`
 - **Every record is available.** The export now ships all records per unit (about 49k rows, compactly encoded), not just the latest few, so a bubble showing 22 now opens a list of 22.
 - **Loads in blocks of 25.** Lists show the first 25, newest first. The button at the end, "Load 25 more · 25 of 86 shown", adds the next 25 each time you tap it, until it reads "All 86 shown". Works in both the details window and the records window.
