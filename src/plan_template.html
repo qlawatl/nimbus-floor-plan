@@ -135,6 +135,10 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .closering text { font: 700 22px var(--font-ui); fill: var(--accent); }
 .burstwrap, .peek, #lcwin, #plan { touch-action: manipulation; }
 .peek.live .pk-b { touch-action: pan-y; }
+.dtfoot { padding: 9px 14px; border-top: 1px solid var(--hair); text-align: center; font-size: 12px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); }
+.subwin .foot { align-items: center; justify-content: space-between; }
+.dthint { font-size: 12px; font-weight: 600; color: var(--accent); }
+#subwin { touch-action: manipulation; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -266,7 +270,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v6 · synthetic data · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v6.1 · synthetic data · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -320,15 +324,16 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 <div class="subscrim" id="lcscrim" hidden style="z-index:44"></div>
 <section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:45">
   <div class="grab" style="display:block"></div>
-  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="lcBack">‹ Back</button><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div><button class="x" id="lcClose" aria-label="Close">×</button></div></div>
+  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="lcBack">‹ Back</button><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div></div></div>
   <div class="pb" id="lcBody"></div>
+  <div class="dtfoot">Double-tap to close</div>
 </section>
 <div class="subscrim" id="subscrim" hidden></div>
 <section class="subwin" id="subwin" hidden role="dialog" aria-modal="true" aria-labelledby="swTitle">
   <div class="grab" style="display:block"></div>
-  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="swBack" hidden>‹ Back to burst</button><h3 id="swTitle"></h3><div class="crumb" id="swCrumb"></div></div><button class="x" id="swClose" aria-label="Close">×</button></div></div>
+  <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="swBack" hidden>‹ Back to burst</button><h3 id="swTitle"></h3><div class="crumb" id="swCrumb"></div></div></div></div>
   <div class="pb" id="swBody"></div>
-  <div class="foot"><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
+  <div class="foot"><span class="dthint">Double-tap to close</span><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
 </section>
 <script type="application/json" id="data">/*__DATA__*/</script>
 <script>
@@ -866,7 +871,6 @@ function renderSub() {
   $('swBody').innerHTML = h;
 }
 $('swBody').addEventListener('click', e => { const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
-$('swClose').onclick = closeSub;
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
@@ -1239,7 +1243,7 @@ function openLC(pid, ent) {
   requestAnimationFrame(() => $('lcwin').classList.add('open'));
 }
 function closeLC() { $('lcwin').classList.remove('open'); $('lcwin').hidden = true; $('lcscrim').hidden = true; }
-$('lcClose').onclick = closeLC; $('lcscrim').onclick = closeLC; $('lcBack').onclick = closeLC;
+$('lcscrim').onclick = closeLC; $('lcBack').onclick = closeLC;
 $('swBack').onclick = () => {
   const f = SW.from; closeSub(); if (!f) return;
   NAV = [{ id: f.id }]; if (f.level === 2 && f.m) NAV.push({ id: f.id, m: f.m }); showNav();
@@ -1374,6 +1378,7 @@ gestures($('plan'), {
 });
 // lifecycle window: double-tap to close
 gestures($('lcwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeLC(), stop: true });
+gestures($('subwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeSub(), stop: true });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && CUR && $('lcwin').hidden && $('subwin').hidden) { e.preventDefault(); navBack(); } });
 
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
