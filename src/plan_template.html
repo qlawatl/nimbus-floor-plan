@@ -361,7 +361,7 @@ li.flash { animation: flash 1.6s ease; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v8.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v8.4 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -952,6 +952,9 @@ function loadMore(container, m, rows, hitKey) {
   ul.insertAdjacentHTML('beforeend', next.map(r => recRow(m, r, hitKey && r[1] === hitKey)).join(''));
   const now = shown + next.length;
   btn.outerHTML = now < rows.length ? moreBtn(now, rows.length) : `<div class="endnote">All ${rows.length} shown</div>`;
+  const first = ul.children[shown];
+  if (first) { first.classList.add('flash'); first.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  toast(`Loaded ${next.length} more · ${now} of ${rows.length}`);
 }
 // timeline: records per month for the list below it; tap a month to jump there (or filter, in the table)
 function tlChart(rows, sel) {
@@ -988,7 +991,22 @@ function tlHover(e) {
 document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
-document.addEventListener('pointerout', e => { const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
+document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
+const TAPSEL = '[data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], tr[data-ent], li[data-step], .lcrow, .brow';
+const TAPX = { el: null, x: 0, y: 0, until: 0, fired: null };
+document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .tblwin, .panel') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
+document.addEventListener('pointerup', e => {
+  const el = TAPX.el; TAPX.el = null;
+  if (!el || Math.hypot(e.clientX - TAPX.x, e.clientY - TAPX.y) > 10 || !(e.target.closest && e.target.closest(TAPSEL) === el)) return;
+  if (e.pointerType === 'mouse') return;               // mice click normally
+  TAPX.fired = el; TAPX.until = Date.now() + 700;
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+}, true);
+document.addEventListener('click', e => {
+  if (!e.isTrusted || !TAPX.fired || Date.now() > TAPX.until) return;
+  const el = e.target.closest && e.target.closest(TAPSEL);
+  if (el === TAPX.fired) { e.stopImmediatePropagation(); e.preventDefault(); TAPX.fired = null; }
+}, true);
 function jumpMonth(container, m, rows, hitKey, mon) {
   const i = rows.findIndex(r => String(r[0]).startsWith(mon));
   if (i < 0) return toast(`No records in ${mlabel(mon)}`);
