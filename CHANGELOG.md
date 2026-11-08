@@ -2,6 +2,9 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v8.3 — 2026-11-08 · branch `release/v8.3`
+- **Timeline bars show their data.** Hover with a mouse, or touch and slide a finger across the bars on a phone, and the line above the chart shows that month: count, plus critical (alarms), open (work orders), $ (POs and invoices) or hours (labor). The bar under your finger lights up. Tap still jumps to that month's rows (or filters, in the table). With no bar selected, the line shows the peak month.
+
 ## v8.2 — 2026-11-08 · branch `release/v8.2`
 - **Fix: Back is reliable on every tap.** The ‹ Back circle was waiting 0.28 s to see if a tap was the first half of a double-tap, so tapping it twice quickly counted as one double-tap (one step back), and three quick taps counted as a triple-tap (main page). Now every tap on Back acts immediately and goes back exactly one step: details list → bubbles → previous level → … Taps on Back, the breadcrumbs and the Back buttons no longer count toward double- or triple-taps.
 - The ‹ Back circle now also appears on the first level of bubbles, so you can step all the way out with Back alone.

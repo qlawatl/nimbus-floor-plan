@@ -222,6 +222,9 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .tl-m:hover .tl-bar { fill: var(--seq4); }
 .tl-m.on .tl-bar { fill: var(--accent); } .tl-m.on .tl-hit { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
 .tl-ax { font: 600 8px var(--font-mono); fill: var(--ink-3); }
+.tl-read.live { fill: var(--accent); font-size: 8.5px; }
+.tl-m.hov .tl-bar { fill: var(--seq5); } .tl-m.hov .tl-hit { fill: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tl-chart svg { touch-action: pan-y; }
 li.flash { animation: flash 1.6s ease; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 100% { background: transparent; } }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
@@ -358,7 +361,7 @@ li.flash { animation: flash 1.6s ease; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v8.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v8.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -953,20 +956,39 @@ function loadMore(container, m, rows, hitKey) {
 // timeline: records per month for the list below it; tap a month to jump there (or filter, in the table)
 function tlChart(rows, sel) {
   const cnt = M.map(() => 0), idx = {}; M.forEach((m, i) => idx[m] = i);
-  rows.forEach(r => { const i = idx[String(r[0]).slice(0, 7)]; if (i != null) cnt[i]++; });
+  const ex = M.map(() => ({ crit: 0, open: 0, amt: 0, hrs: 0 }));
+  rows.forEach(r => { const i = idx[String(r[0]).slice(0, 7)]; if (i == null) return; cnt[i]++; const e = ex[i];
+    if (r[2] === 'critical') e.crit++;
+    if (['Open', 'In Progress', 'Waiting Parts'].includes(r[3])) e.open++;
+    if (typeof r[3] === 'number') e.amt += r[3]; else if (typeof r[2] === 'number') e.hrs += r[2]; });
+  const tip = i => `${mlabel(M[i])} · ${cnt[i]} record${cnt[i] === 1 ? '' : 's'}${ex[i].crit ? ` · ${ex[i].crit} critical` : ''}${ex[i].open ? ` · ${ex[i].open} open` : ''}${ex[i].amt ? ` · ${usd(ex[i].amt)}` : ''}${ex[i].hrs ? ` · ${Math.round(ex[i].hrs)} h` : ''}${cnt[i] ? ' · tap to jump' : ''}`;
   const W = 340, H = 58, pl = 4, pr = 4, top = 12, base = 42, bw = (W - pl - pr) / M.length, mx = Math.max(1, ...cnt);
   const peak = cnt.indexOf(mx);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Records per month, ${M[0]} to ${M[M.length - 1]}">`;
   s += `<line x1="0" y1="${base}" x2="${W}" y2="${base}" class="tl-base"/>`;
   cnt.forEach((c, i) => {
     const h = c ? Math.max(2, (base - top) * c / mx) : 0, x = pl + i * bw;
-    s += `<g class="tl-m${sel === M[i] ? ' on' : ''}${c ? '' : ' empty'}" data-mon="${M[i]}"><rect x="${x}" y="${top - 6}" width="${bw}" height="${base - top + 12}" class="tl-hit"/>
+    s += `<g class="tl-m${sel === M[i] ? ' on' : ''}${c ? '' : ' empty'}" data-mon="${M[i]}" data-tip="${esc(tip(i))}"><rect x="${x}" y="${top - 6}" width="${bw}" height="${base - top + 12}" class="tl-hit"/>
       ${c ? `<rect x="${x + 1}" y="${base - h}" width="${bw - 2}" height="${h}" rx="${Math.min(2, h / 2)}" class="tl-bar"/>` : ''}<title>${mlabel(M[i])}: ${c}</title></g>`;
   });
   s += `<text x="${pl}" y="${H - 4}" class="tl-ax">${mlabel(M[0])}</text><text x="${W - pr}" y="${H - 4}" class="tl-ax" text-anchor="end">${mlabel(M[M.length - 1])}</text>`;
-  if (cnt[peak]) s += `<text x="${Math.min(W - 40, Math.max(30, pl + peak * bw + bw / 2))}" y="${top - 4}" class="tl-ax" text-anchor="middle">peak ${cnt[peak]} · ${mlabel(M[peak])}</text>`;
+  const deflt = cnt[peak] ? `peak ${cnt[peak]} · ${mlabel(M[peak])} · touch a bar for its data` : 'no records';
+  s += `<text x="${W / 2}" y="${top - 4}" class="tl-ax tl-read" text-anchor="middle" data-default="${esc(deflt)}">${esc(deflt)}</text>`;
   return `<div class="tl-chart">${s}</svg></div>`;
 }
+// hover (mouse) or touch/slide (phone) over the timeline shows that month's numbers in the readout line
+function tlHover(e) {
+  const chart = e.target.closest && e.target.closest('.tl-chart'); if (!chart) return;
+  const read = chart.querySelector('.tl-read'), g = e.type === 'pointerleave' ? null
+    : (document.elementFromPoint(e.clientX, e.clientY) || e.target).closest('.tl-m');
+  chart.querySelectorAll('.tl-m.hov').forEach(x => x !== g && x.classList.remove('hov'));
+  if (g && chart.contains(g)) { g.classList.add('hov'); read.textContent = g.dataset.tip; read.classList.add('live'); }
+  else { read.textContent = read.dataset.default; read.classList.remove('live'); }
+}
+document.addEventListener('pointerover', tlHover, true);
+document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
+document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
+document.addEventListener('pointerout', e => { const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
 function jumpMonth(container, m, rows, hitKey, mon) {
   const i = rows.findIndex(r => String(r[0]).startsWith(mon));
   if (i < 0) return toast(`No records in ${mlabel(mon)}`);
