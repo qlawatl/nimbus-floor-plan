@@ -198,6 +198,21 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .totop { position: absolute; right: 14px; bottom: 14px; border: 1px solid var(--accent); background: var(--sheet); color: var(--accent); border-radius: 18px; padding: 7px 12px; font: 600 13px var(--font-ui); box-shadow: 0 4px 12px rgba(0,0,0,.15); cursor: pointer; z-index: 3; }
 .totop[hidden] { display: none; }
 .linwin { position: fixed; }
+.modebtn { margin-left: 8px; border: 1px solid var(--accent) !important; border-radius: 14px; padding: 3px 10px !important; text-decoration: none !important; background: color-mix(in srgb, var(--accent) 8%, var(--sheet)) !important; }
+.tblwin { position: fixed; inset: 0; z-index: 55; background: var(--paper); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.tblbody { max-width: 980px; margin: 0 auto; padding: 72px 12px 40px; display: grid; gap: 10px; }
+.tbl-bar { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; } .tbl-bar b { font-size: 18px; } .tbl-bar span { color: var(--ink-3); font-size: 13px; }
+.tbtn { border: 1px solid var(--line-soft); background: var(--sheet); color: var(--accent); border-radius: 8px; padding: 5px 10px; font: 600 13px var(--font-ui); cursor: pointer; }
+.tscroll { overflow-x: auto; background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; }
+.tg { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tg th { position: sticky; top: 0; background: var(--sheet); text-align: left; font: 600 11px var(--font-ui); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); padding: 9px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; cursor: pointer; }
+.tg td { padding: 9px 10px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+.tg tbody tr { cursor: pointer; } .tg tbody tr:hover { background: var(--paper); } .tg tbody tr.on { background: color-mix(in srgb, var(--accent) 10%, var(--sheet)); }
+.tg .r { text-align: right; } .tg .mut, .mut { color: var(--ink-3); font-size: 12px; }
+.tg.recs td { max-width: 260px; } .tg.recs td:not(.mono):not(.r) { min-width: 150px; } .tg.recs td.mono { white-space: nowrap; }
+.tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tbl-tools input { flex: 1 1 180px; height: 36px; border-radius: 8px; border: 1px solid var(--line-soft); background: var(--sheet); color: var(--ink); padding: 0 10px; font: 14px var(--font-ui); }
+.chip.on { border: 1px solid var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); border-radius: 14px; padding: 4px 10px; font: 600 12px var(--font-ui); cursor: pointer; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -332,7 +347,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v7.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v8 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -385,14 +400,15 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 
 <div class="toast" id="toast" hidden role="status"></div>
 <nav class="crumbs" id="crumbs" hidden aria-label="Where you are"></nav>
+<section class="tblwin" id="tblwin" hidden aria-label="Table view"><div class="tblbody" id="tblBody"></div></section>
 <section class="subwin linwin" id="linwin" hidden role="dialog" aria-labelledby="linTitle" style="z-index:42">
   <div class="grab" style="display:block"></div>
   <div class="ph"><div class="ph-top"><div><h3 id="linTitle"></h3><div class="crumb" id="linCrumb"></div></div></div></div>
   <div class="pb" id="linBody"></div>
   <button type="button" class="totop" id="linTop" hidden>↑ Top</button>
 </section>
-<div class="subscrim" id="lcscrim" hidden style="z-index:44"></div>
-<section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:45">
+<div class="subscrim" id="lcscrim" hidden style="z-index:57"></div>
+<section class="subwin" id="lcwin" hidden role="dialog" aria-modal="true" aria-labelledby="lcTitle" style="z-index:58">
   <div class="grab" style="display:block"></div>
   <div class="ph"><div class="ph-top"><div><button type="button" class="backbtn" id="lcBack">‹ Back</button><h3 id="lcTitle"></h3><div class="crumb" id="lcCrumb"></div></div></div></div>
   <div class="pb" id="lcBody"></div>
@@ -931,7 +947,7 @@ function openPeek(b, t) {
     b.__pg = { m, rows };
   }
   const el = document.createElement('div');
-  el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, '');
+  el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
   el.addEventListener('click', e => { if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
@@ -1537,6 +1553,7 @@ function showNav() {
   CUR = b; b.pinned = true; b.g.style.pointerEvents = 'auto'; b.g.__b = b;
   if (v.m) { const ph = b.hits.find(h => h.m === v.m); if (ph) openLevel2(b, ph); }
   setHint();
+  if (S.table) { Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE }); renderTable(); }
   gestures(b.g, {
     hitAt: hitAtBurst,
     tap: t => {
@@ -1565,26 +1582,105 @@ function updateCrumbs() {
   if (!$('lcwin').hidden) items.push({ label: 'Lifecycle', act: 'lc' });
   el.innerHTML = items.map((it, i) => i === items.length - 1
     ? `<b aria-current="page">${esc(it.label)}</b>`
-    : `<button type="button" data-act="${it.act}">${esc(it.label)}</button><span aria-hidden="true">›</span>`).join('');
+    : `<button type="button" data-act="${it.act}">${esc(it.label)}</button><span aria-hidden="true">›</span>`).join('')
+    + `<button type="button" class="modebtn" data-mode>${S.table ? '◎ Bubbles' : '▦ Table'}</button>`;
   el.hidden = false;
 }
 $('crumbs').addEventListener('click', e => {
+  if (e.target.closest('[data-mode]')) return setTable(!S.table);
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act;
   if (act === 'peek') return closeLC();
   if (!$('lcwin').hidden) closeLC();
-  if (act === 'root') { const g = CUR && CUR.g; NAV = []; CUR = null; g && closeBurst(g); updateCrumbs(); return; }
+  if (act === 'root') { const g = CUR && CUR.g; NAV = []; CUR = null; g && closeBurst(g); setTable(false); updateCrumbs(); return; }
   const depth = +act.slice(1);
   if (CUR && CUR.peekEl) closePeek(CUR);
   NAV = NAV.slice(0, depth + 1); showNav();
 });
+/* ---------- table view: the same drill state as a sortable, filterable grid ---------- */
+const TB = { item: null, q: '', sort: null, dir: -1, shown: 25 };
+const TCOLS = {
+  alarms: [['When', 0], ['Code', 1], ['Severity', 2], ['Message', 3], ['WO', 4]],
+  alerts: [['Sent', 0], ['Team · channel', 1], ['Alert', 2], ['Alarm', 3], ['Ack', 4, 'ack']],
+  wos: [['Opened', 0], ['Type', 1], ['WO', 2], ['Status', 3], ['Description', 4], ['Closed', 5]],
+  po: [['Created', 0, 'date'], ['Vendor', 1], ['PO', 2], ['Amount', 3, 'usd'], ['Line', 4]],
+  inv: [['Date', 0, 'date'], ['Vendor', 1], ['Invoice', 2], ['Amount', 3, 'usd'], ['PO', 4]],
+  labor: [['Date', 0, 'date'], ['Technician', 1], ['Hours', 2, 'num'], ['Note', 3], ['WO', 4]],
+};
+function setTable(on) {
+  S.table = on && !!CUR;
+  if (S.table) {
+    Object.assign(TB, { item: null, q: '', sort: null, dir: -1, shown: PAGE });
+    if (CUR.peekEl) { TB.item = CUR.peekEl.dataset.item || null; closePeek(CUR); }
+    renderTable(); $('tblwin').hidden = false; $('tblwin').scrollTop = 0;
+  } else $('tblwin').hidden = true;
+  updateCrumbs();
+}
+const fmtCell = (v, kind) => v == null ? '' : kind === 'usd' ? usd(v) : kind === 'date' ? String(v).slice(0, 10) : kind === 'ack' ? (v ? 'yes' : 'no') : kind === 'num' ? String(v) : String(v);
+function metricRows(id) {
+  const Z = isZone(id), p = Z ? ZONES[id] : P[id], k = p.k, fl = p.flow, mem = Z ? p.members : [id];
+  const fs = Z ? p.findings : (findBy[id] || []);
+  const n = m => mem.reduce((a, x) => a + recs(m, x).length, 0);
+  return [
+    ['alarms', 'Alarms', n('alarms'), `${num(k.alarms90)} in last 90 days`],
+    ['alerts', 'Alerts', n('alerts'), 'paged from alarms'],
+    ['wos', 'Work orders', n('wos'), `${num(k.open)} open`],
+    ['po', 'Purchase orders', n('po'), usd((fl['wo>po'] || {}).amt || 0) + ' committed'],
+    ['inv', 'Invoices', n('inv'), usd(k.spend) + ' invoiced'],
+    ['labor', 'Labor entries', n('labor'), num(k.labor) + ' hours'],
+    ['findings', 'Findings', fs.length, fs[0] ? fs[0].title : 'none'],
+  ];
+}
+function renderTable() {
+  const v = NAV[NAV.length - 1]; if (!v) return;
+  const id = v.id, Z = isZone(id);
+  let h = `<div class="tbl-bar"><button type="button" class="tbtn" data-tb="back">‹ Back</button><b>${esc(v.m ? MTITLE[v.m] : titleOf(id))}</b><span>${esc(Z ? ZONES[id].b + ' · ' + ZONES[id].members.length + ' units' : id)}</span></div>`;
+  if (!v.m) {
+    h += `<div class="sect">Record types · tap one to drill in</div><div class="tscroll"><table class="tg"><thead><tr><th>Type</th><th class="r">Records</th><th>Summary</th></tr></thead><tbody>
+      ${metricRows(id).map(([m, l, c, s]) => `<tr data-drill="${m}"><td><b>${l}</b></td><td class="r mono">${num(c)}</td><td class="mut">${esc(s)}</td></tr>`).join('')}</tbody></table></div>`;
+    const units = Z ? ZONES[id].members : [...(up[id] || []), ...(down[id] || [])];
+    if (units.length) h += `<div class="sect">${Z ? 'Units in this room' : 'Connected units'} · tap to open</div><div class="tscroll"><table class="tg"><thead><tr><th>Unit</th><th class="r">Alarms</th><th class="r">WOs</th><th class="r">Open</th><th class="r">Spend</th><th>Findings</th></tr></thead><tbody>
+      ${units.map(u => { const k = P[u].k, w = worst(u); return `<tr data-unit="${u}"><td><b>${titleOf(u)}</b>${Z ? '' : `<span class="mut"> ${(up[id] || []).includes(u) ? '↑ feeds this' : '↓ fed by this'}</span>`}</td><td class="r mono">${num(k.alarms)}</td><td class="r mono">${num(k.wos)}</td><td class="r mono">${k.open}</td><td class="r mono">${usd(k.spend)}</td><td>${w ? sevtag(w === 3 ? 'critical' : w === 2 ? 'warning' : 'info') : ''}</td></tr>`; }).join('')}</tbody></table></div>`;
+    $('tblBody').innerHTML = h; return;
+  }
+  const m = v.m, groups = drill(id, m);
+  h += `<div class="sect">${Z ? 'By unit' : 'Groups'} · tap to filter${Z ? ', ›  to open the unit' : ''}</div><div class="tscroll"><table class="tg"><thead><tr><th>${Z ? 'Unit' : 'Group'}</th><th class="r">Records</th><th class="r">Value</th><th></th></tr></thead><tbody>
+    ${groups.map(g => `<tr data-item="${esc(g.key)}" class="${TB.item === g.key ? 'on' : ''}"><td><b>${esc(g.label)}</b><div class="mut">${esc(g.sub || '')}</div></td><td class="r mono">${num(g.n ?? g.v)}</td><td class="r mono">${esc(g.vs)}</td><td class="r">${g.kind === 'pos' ? `<button type="button" class="tbtn" data-open-unit="${g.key}">›</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  if (m === 'findings') { $('tblBody').innerHTML = h; return; }
+  const cols = (Z ? [['Unit', -1]] : []).concat(TCOLS[m]);
+  let rows = (Z ? ZONES[id].members : [id]).flatMap(pid => recs(m, pid).map(r => ({ pid, r })));
+  if (TB.item) rows = rows.filter(x => Z ? x.pid === TB.item : x.r[1] === TB.item);
+  if (TB.q) { const q = TB.q.toLowerCase(); rows = rows.filter(x => (x.pid + ' ' + x.r.join(' ')).toLowerCase().includes(q)); }
+  const sc = TB.sort ?? 0, val = x => sc === -1 ? x.pid : x.r[sc];
+  rows.sort((a, b) => { const A = val(a), B = val(b); return (A == null) - (B == null) || (A < B ? -1 : A > B ? 1 : 0) * (TB.sort == null ? -1 : TB.dir); });
+  const shown = rows.slice(0, TB.shown);
+  h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
+    <div class="tscroll"><table class="tg recs"><thead><tr>${cols.map(([l, i, kind]) => `<th data-sort="${i}" class="${kind === 'usd' || kind === 'num' ? 'r' : ''}">${l}${(TB.sort ?? 0) === i ? (TB.sort == null || TB.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>
+    ${shown.map(({ pid, r }) => { const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
+      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : ''}">${esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
+    ${rows.length > TB.shown ? `<button type="button" class="more" data-tmore>Load ${Math.min(PAGE, rows.length - TB.shown)} more · ${TB.shown} of ${rows.length} shown</button>` : `<div class="endnote">All ${rows.length} shown · tap a row to follow its lifecycle</div>`}`;
+  $('tblBody').innerHTML = h;
+}
+$('tblBody').addEventListener('click', e => {
+  const T = e.target;
+  if (T.closest('[data-tb="back"]')) return navBack();
+  const ou = T.closest('[data-open-unit]'); if (ou) return navPush({ id: ou.dataset.openUnit });
+  const dr = T.closest('[data-drill]'); if (dr) return navPush({ id: NAV[NAV.length - 1].id, m: dr.dataset.drill });
+  const un = T.closest('[data-unit]'); if (un) return navPush({ id: un.dataset.unit });
+  if (T.closest('[data-clear]')) { TB.item = null; TB.shown = PAGE; return renderTable(); }
+  if (T.closest('[data-tmore]')) { TB.shown += PAGE; return renderTable(); }
+  const th = T.closest('[data-sort]'); if (th) { const i = +th.dataset.sort; if ((TB.sort ?? 0) === i) TB.dir = TB.sort == null ? 1 : -TB.dir; else TB.dir = 1; TB.sort = i; return renderTable(); }
+  const it = T.closest('[data-item]'); if (it) { TB.item = TB.item === it.dataset.item ? null : it.dataset.item; TB.shown = PAGE; return renderTable(); }
+  const row = T.closest('tr[data-ent]'); if (row) openLC(row.dataset.pid, row.dataset.ent);
+});
+$('tblBody').addEventListener('input', e => { if (e.target.id === 'tblQ') { TB.q = e.target.value; TB.shown = PAGE; const pos = e.target.selectionStart; renderTable(); const q = $('tblQ'); q.focus(); q.setSelectionRange(pos, pos); } });
 function openNav(id) { opened(); NAV = [{ id }]; showNav(); }
 function navPush(v) { opened(); NAV.push(v); showNav(); if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {} }
 function navBack() {
   if (!CUR) return;
   if (CUR.peekEl) return closeDetails();
   NAV.pop();
-  if (!NAV.length) { const g = CUR.g; CUR = null; closeBurst(g); updateCrumbs(); return; }
+  if (!NAV.length) { const g = CUR.g; CUR = null; closeBurst(g); setTable(false); updateCrumbs(); return; }
   showNav();
 }
 // details window: records for a bubble, or a unit summary for a unit bubble
@@ -1725,6 +1821,7 @@ function goHome() {
   if (!$('subwin').hidden) closeSub();
   if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); }
   document.querySelectorAll('.burstwrap, .closering').forEach(x => x.remove());
+  S.table = false; $('tblwin').hidden = true;
   updateCrumbs();
   $('qres').hidden = true;
   if (!$('linwin').hidden) { $('linwin').classList.remove('open'); $('linwin').hidden = true; }
