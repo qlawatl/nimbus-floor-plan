@@ -358,7 +358,7 @@ li.flash { animation: flash 1.6s ease; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v8.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v8.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -758,6 +758,13 @@ function openBurst(id) {
   };
   row(ups, topBand - 54, '↑', 'FEEDS THIS UNIT');
   row(downs, H - botBand + 52, '↓', 'FED BY THIS UNIT');
+  { // Back circle on the first level too: one tap = one step back (closes the bubbles at the top)
+    const rB = Math.max(26, base * .85), bx = rB + 14, by = rB + 64;
+    hits.push({ x: bx, y: by, r: rB, id, name: 'back', kind: 'back' });
+    h += satG(hits.length - 1, bx, by, `<circle r="${rB}" fill="var(--sheet)" stroke="var(--accent)" stroke-width="2"/>
+      <text y="-1" text-anchor="middle" font-size="${Math.round(rB * .62)}" font-weight="700" fill="var(--accent)" font-family="var(--font-ui)">‹</text>
+      <text y="${Math.round(rB * .5)}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--accent)" font-family="var(--font-ui)">Back</text>`, 0);
+  }
   hits.push(Z ? { x: cx, y: cy, r: rC, id, name: 'close', kind: 'none' } : { x: cx, y: cy, r: rC, id, tab: 'overview', name: 'Details → Overview', kind: 'pos' });
   h += satG(hits.length - 1, cx, cy, `<circle r="${rC}" fill="var(--accent)" stroke="var(--sheet)" stroke-width="3"/>
     <text y="-3" text-anchor="middle" font-size="${Math.round(rC * .36)}" font-weight="700" font-family="var(--font-mono)" fill="#fff">${Z ? p.cls : titleOf(id)}</text>
@@ -1545,7 +1552,7 @@ function holdRing(x, y, ms, icon) {
   return el;
 }
 // one recognizer per surface; handlers get the hit target (or null for background)
-function gestures(el, { hitAt, tap, dbl, hold, canHold, icon = '≡', stop = false }) {
+function gestures(el, { hitAt, tap, dbl, hold, canHold, instant, icon = '≡', stop = false }) {
   let st = null, last = null, tapT = null;
   const cancel = () => { if (!st) return; clearTimeout(st.timer); clearTimeout(st.ringT); st.ring && st.ring.remove(); st = null; };
   el.addEventListener('pointerdown', e => {
@@ -1568,6 +1575,7 @@ function gestures(el, { hitAt, tap, dbl, hold, canHold, icon = '≡', stop = fal
     const s = st; cancel();
     const now = Date.now();
     if (!live()) { last = null; clearTimeout(tapT); return; }
+    if (instant && instant(s.t)) { last = null; clearTimeout(tapT); return tap && tap(s.t, s); }
     if (dbl && last && now - last.t < TAP.DOUBLE_MS && Math.hypot(s.x - last.x, s.y - last.y) < 40) { clearTimeout(tapT); last = null; return dbl(s.t, s); }
     if (!dbl) return tap && tap(s.t, s);
     last = { t: now, x: s.x, y: s.y };
@@ -1597,6 +1605,7 @@ function showNav() {
     tap: t => {
       if (!CUR) return;
       if (CUR.peekEl) return closeDetails();   // details list open: Back circle or any tap outside the list returns to the bubbles
+      if (t && t.kind === 'back') return navBack();
       if (!t) return toast('Tap a circle · double-tap to go back');
       if (t.kind === 'back') return navBack();
       if (t.kind === 'sub' && CUR.level === 1) return navPush({ id: t.id, m: t.m });
@@ -1605,6 +1614,7 @@ function showNav() {
       if (t.kind === 'pos') return navPush({ id: t.id });                            // connected unit or unit in a room
     },
     dbl: () => CUR && navBack(),
+    instant: t => t && t.kind === 'back',
     canHold: t => t && t.kind !== 'back' && t.kind !== 'none' && !CUR.peekEl,
     hold: t => openDetails(t),
   });
@@ -1878,6 +1888,8 @@ const TT = { downs: [], taps: [], opened: 0 };
 const opened = () => { TT.opened = Date.now(); TT.taps = []; };
 document.addEventListener('pointerdown', e => { TT.down = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
 document.addEventListener('pointerup', e => {
+  if (CUR && !e.target.closest('.peek')) { const h = hitAtBurst(e); if (h && h.kind === 'back') { TT.taps = []; return; } }
+  if (e.target.closest('.crumbs, .backbtn, .tbtn')) { TT.taps = []; return; }
   const d = TT.down; if (!d || Date.now() - d.t > 350 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) { TT.taps = []; return; }
   const now = Date.now();
   // a triple-tap is three quick taps in one spot (each under 300 ms apart); a tap that opened something starts a new count

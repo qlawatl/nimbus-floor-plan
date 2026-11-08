@@ -2,6 +2,10 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v8.2 — 2026-11-08 · branch `release/v8.2`
+- **Fix: Back is reliable on every tap.** The ‹ Back circle was waiting 0.28 s to see if a tap was the first half of a double-tap, so tapping it twice quickly counted as one double-tap (one step back), and three quick taps counted as a triple-tap (main page). Now every tap on Back acts immediately and goes back exactly one step: details list → bubbles → previous level → … Taps on Back, the breadcrumbs and the Back buttons no longer count toward double- or triple-taps.
+- The ‹ Back circle now also appears on the first level of bubbles, so you can step all the way out with Back alone.
+
 ## v8.1 — 2026-11-08 · branch `release/v8.1`
 - **Timeline at the top of every records list:** the details list, the records window and the table grid. It's a monthly bar chart (Jan 2025 – Oct 2026) of exactly the records in that list, with the peak month labeled. In the details and records lists it stays put while you scroll.
   - **Tap a month** in a list to jump to its first record there. It loads more pages automatically if needed and highlights the row.
