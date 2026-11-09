@@ -93,7 +93,9 @@ body:not(.oncover) .aisum { display: none; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .kpi { background: var(--sheet); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px; }
 .kpi b { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.kpi span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+@keyframes kflash { from { opacity: .35; } to { opacity: 1; } }
+.kpis.kflash .kpi b { animation: kflash .35s ease-out; }
+.kpi span { white-space: nowrap; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
 @media (max-width: 420px) { .kpi b { font-size: 15px; } .kpi { padding: 7px 8px; } }
 
 .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; color: var(--ink-2); }
@@ -458,7 +460,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.6 · synthetic</span>
+      <span class="chip">v10.7 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -884,9 +886,11 @@ function renderWhere() {
   const site = S.b.slice(0, 2), parts = [['cover', 'All sites']];
   if (S.view !== 'cover') parts.push(['site', siteShort(site)]);
   if (S.view === 'building') parts.push(['building', 'Building ' + S.b.slice(3)]);
+  if (S.view === 'building' && CUR && NAV.length) { const sc = kpiScope(); if (sc.drill) parts.push(['drill', sc.label]); }
   $('where').innerHTML = parts.map(([v, l], i) => `${i ? '<span class="sep">›</span>' : ''}<button type="button" data-go="${v}"${i === parts.length - 1 ? ' aria-current="page"' : ''}>${esc(l)}</button>`).join('');
 }
-$('where').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b && b.getAttribute('aria-current') !== 'page') goView(b.dataset.go); });
+function closeDrill() { if (!CUR) return; const g = CUR.g; NAV = []; CUR = null; closeBurst(g); setTable(false); updateCrumbs(); }
+$('where').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b || b.getAttribute('aria-current') === 'page') return; if (b.dataset.go === 'building' && CUR) return closeDrill(); closeDrill(); goView(b.dataset.go); });
 function goView(view, b) {
   if (b) S.b = b;
   if (view === 'cover') { stopReplay(); S.lin = null; if (S.sel) closePanel(true); }
@@ -1616,12 +1620,23 @@ function renderTiles() {
   }).join('');
 }
 $('tiles').addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) goBuilding(t.dataset.b); });
+/* v10.7: the KPI boxes follow the drill: all sites › site › building › room › unit */
+function kpiScope() {
+  if (S.view === 'cover') return { ids: PIDS, label: 'All sites' };
+  if (S.view === 'site') { const st = S.b.slice(0, 2); return { ids: PIDS.filter(id => id.startsWith(st + '-')), label: siteShort(st) }; }
+  if (CUR && NAV.length) {
+    const id = NAV[NAV.length - 1].id;
+    if (isZone(id) && ZONES[id]) return { ids: ZONES[id].members, label: ZONES[id].title, drill: true };
+    if (P[id]) return { ids: [id], label: titleOf(id), drill: true };
+  }
+  return { ids: bldIds(S.b), label: 'Building ' + S.b.slice(3) };
+}
 function renderKpis() {
-  const ids = S.view === 'cover' ? PIDS : bldIds(S.b), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
+  const sc = kpiScope(), ids = sc.ids, sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
   const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
   const mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
   $('kpis').innerHTML = (mo == null ? [
-    [usd(sum(p => p.k.spend)), 'Spend 22 mo'],
+    [usd(sum(p => p.k.spend)), 'Spend'],
     [num(sum(p => p.k.alarms90)), 'Alarms 90d'],
     [num(sum(p => p.k.open)), 'Open WOs'],
   ] : [
@@ -1629,8 +1644,9 @@ function renderKpis() {
     [num(sum(p => p.ma[mo])), 'Alarms ' + ml],
     [num(sum(p => p.mc[mo])), 'CM WOs ' + ml],
   ]).concat([
-    [`${crit}<small style="font-size:11px;color:var(--ink-3)"> crit · ${warn} warn</small>`, 'Findings'],
+    [`<span style="color:${crit ? 'var(--crit)' : 'inherit'}">${crit}</span> / <span style="color:${warn ? '#b07a00' : 'inherit'}">${warn}</span>`, 'Crit / warn'],
   ]).map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('kpis').classList.remove('kflash'); void $('kpis').offsetWidth; $('kpis').classList.add('kflash');
 }
 function renderLegend() {
   let h;
@@ -2088,6 +2104,7 @@ function setHint() { updateCrumbs(); }
 // breadcrumbs: building › unit/room › metric › … › details › lifecycle — every earlier hop is tappable
 function updateCrumbs() {
   const el = $('crumbs');
+  try { renderKpis(); renderWhere(); } catch (e) {}
   if (!CUR || !NAV.length) { el.hidden = true; return; }
   const items = [{ label: NAV[0].id.replace(/^Z:/, '').slice(0, 5), act: 'root' }];
   NAV.forEach((v, i) => items.push({ label: v.m ? MTITLE[v.m] : titleOf(v.id), act: 'd' + i }));
