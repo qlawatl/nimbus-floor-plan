@@ -491,6 +491,10 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
 .tblbody { max-width: min(1200px, 100%); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
 @media (hover: none) and (pointer: coarse) { .tbtn, .x, .controls .seg button { min-height: 40px; } }
 @media (max-width: 380px) { .controls { gap: 6px 8px; } }
+.lcwhere { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.lcwhere.none { border-color: var(--line-soft); background: var(--sheet); cursor: default; }
+.lcwhere b { display: block; font-size: 14px; } .lcwhere small { display: block; color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+.lcwhere .go { flex: none; color: var(--accent); font-weight: 700; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -2067,6 +2071,7 @@ function lcList(pid) {
     return `<button type="button" class="lcrow" data-ent="${esc(ent)}"><span class="lt"><b>${esc(label)}</b><small>${(c.a ? c.a[1] : c.w[3]).slice(0, 10)}${t1 > t0 ? ' · ' + dur(t1 - t0) + ' span' : ''}</small></span><span class="dots">${lcDots(c)}</span></button>`;
   }).join('')}</div>`;
 }
+$('lcBody').addEventListener('click', e => { const ln = e.target.closest('[data-lin]'); if (ln) openLineage(ln.dataset.lin); });
 function openLC(pid, ent) { opened();
   const c = chainFor(pid, ent);
   if (!c) return toast('No linked lifecycle for that record');
@@ -2104,7 +2109,11 @@ function openLC(pid, ent) { opened();
   $('lcBack').textContent = !$('subwin').hidden || document.querySelector('.peek.live') ? '‹ Back to records' : '‹ Back to details';
   $('lcTitle').textContent = `${titleOf(pid)} · lifecycle`;
   $('lcCrumb').textContent = `${pid} · ${c.a ? c.a[0] + ' → ' : ''}${c.w ? c.w[0] : 'no work order'}`;
-  $('lcBody').innerHTML = `<div class="lck">${kpis.map(([l, v, s]) => `<div class="stat"><b>${v}</b><span>${l} ${s}</span></div>`).join('')}</div>
+  const ast = assetAt(pid, new Date(t0).toISOString()), hasLin = ast && D.lineage && D.lineage[ast.aid];
+  const where = ast ? (hasLin
+    ? `<button type="button" class="lcwhere" data-lin="${esc(ast.aid)}"><span><b>Where has this asset been?</b><small>${esc(ast.aid)} · ${esc(ast.desc)}${ast.swapped ? ' · earlier asset, since replaced' : ''}</small></span><span class="go">Show journey ›</span></button>`
+    : `<div class="lcwhere none"><span><b>Asset ${esc(ast.aid)}</b><small>${esc(ast.desc)} · no movement history recorded</small></span></div>`) : '';
+  $('lcBody').innerHTML = `${where}<div class="lck">${kpis.map(([l, v, s]) => `<div class="stat"><b>${v}</b><span>${l} ${s}</span></div>`).join('')}</div>
     <div><div class="sect">Timeline · log scale so minutes and weeks both fit</div>${strip}</div>
     <ol class="lcol">${rows}</ol>`;
   $('lcwin').hidden = false; $('lcscrim').hidden = false;
@@ -2508,7 +2517,7 @@ function journeySVG(aid, site) {
 function openLineage(aid) { opened();
   const a = D.lineage[aid]; if (!a) return toast('No movement history for this asset');
   if (CUR) { const g = CUR.g; NAV = []; CUR = null; g.remove(); updateCrumbs(); }
-  if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (S.sel) closePanel(true);
+  if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (!$('tblwin').hidden) setTable(false); if (S.sel) closePanel(true);
   const st = linSteps(aid), cur = st[st.length - 1], six = locAt(st, SIX_MO);
   const curSite = (P[cur.to] ? cur.to : cur.to.startsWith('E1') || cur.to.startsWith('W1') ? cur.to : S.b).slice(0, 2);
   stopReplay(); S.lin = aid; S.linFocus = null; S.linView = 'region'; S.linMode = 'vendor';
