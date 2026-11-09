@@ -286,6 +286,11 @@ body.has-snap .wrap { padding-top: 54px; }
   background: color-mix(in srgb, var(--c) 10%, var(--sheet)); color: var(--c); font: 700 11.5px var(--font-ui); line-height: 18px; white-space: nowrap; }
 .pri svg { width: 15px; height: 15px; flex: none; }
 .pricell .pri { margin: 1px 4px 1px 0; }
+.tlcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.tlc { border: 1px solid var(--line-soft); background: var(--sheet); color: var(--accent); border-radius: 14px; padding: 4px 10px; font: 600 12.5px var(--font-ui); cursor: pointer; }
+.tlc.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--sheet)); }
+.tlcrumbs .sep { color: var(--ink-3); font-size: 12px; }
+.monbar { justify-content: space-between; flex-wrap: wrap; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -420,7 +425,7 @@ body.has-snap .wrap { padding-top: 54px; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v10.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v10.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -1131,7 +1136,7 @@ document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
-const TAPSEL = '[data-note], [data-fwd], [data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], [data-linview], [data-linmode], [data-replay], tr[data-ent], li[data-step], .lcrow, .brow';
+const TAPSEL = '[data-note], [data-fwd], [data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-tlgo], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], [data-linview], [data-linmode], [data-replay], tr[data-ent], li[data-step], .lcrow, .brow';
 const TAPX = { el: null, x: 0, y: 0, until: 0, fired: null };
 document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .linwin, .tblwin, .panel, .outwin') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
 document.addEventListener('pointerup', e => {
@@ -1150,28 +1155,94 @@ document.addEventListener('click', e => {
 }, true);
 // month filter: tap a bar to show only that month's rows (tap it again, or the chip, to clear); paging runs over the filtered rows
 const mlabelY = m => { const [y, mm] = m.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mm - 1] + ' ' + y; };
-const monRows = st => st.mon ? st.all.filter(r => String(r[0]).startsWith(st.mon)) : st.all;
-const monChip = st => st.mon ? `<div class="monbar"><button type="button" class="chip on" data-clearmon>${mlabelY(st.mon)} ×</button><span class="mut">${st.rows.length} of ${st.all.length} records</span></div>` : '';
+/* time drill on the record timeline: all months -> month -> week of month (YYYY-MM-Wn) -> day (YYYY-MM-DD)
+   tap a bar = drill into it (the chart re-bins to its children) · slide = flip across bars at the same level · crumbs = jump back up */
+const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], DOW3 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const dim = ym => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate();
+const wom = d => Math.ceil(+String(d).slice(8, 10) / 7);
+const lvlOf = k => !k ? 'all' : k.length === 4 ? 'year' : k.includes('-W') ? 'week' : k.length === 7 ? 'month' : 'day';
+const weekSpan = k => { const ym = k.slice(0, 7), w = +k.slice(9), a = (w - 1) * 7 + 1; return [a, Math.min(a + 6, dim(ym))]; };
+function inKey(d, k) {
+  if (!k) return true; d = String(d);
+  if (k.includes('-W')) return d.startsWith(k.slice(0, 7)) && wom(d) === +k.slice(9);
+  return d.startsWith(k);
+}
+function kidsOf(view) {   // the bars to draw for the range on screen
+  const lv = lvlOf(view);
+  if (lv === 'all') return M.slice();
+  if (lv === 'year') return M.filter(m => m.startsWith(view));
+  if (lv === 'month') return Array.from({ length: Math.ceil(dim(view) / 7) }, (_, i) => `${view}-W${i + 1}`);
+  const [a, b] = weekSpan(lv === 'day' ? `${view.slice(0, 7)}-W${wom(view)}` : view), ym = view.slice(0, 7);
+  return Array.from({ length: b - a + 1 }, (_, i) => `${ym}-${String(a + i).padStart(2, '0')}`);
+}
+function keyLabel(k, long) {
+  const lv = lvlOf(k);
+  if (lv === 'all') return 'All';
+  if (lv === 'year') return k;
+  if (lv === 'month') return MON3[+k.slice(5, 7) - 1] + (long ? ' ' + k.slice(0, 4) : ' ' + k.slice(2, 4));
+  if (lv === 'week') { const [a, b] = weekSpan(k); return `W${k.slice(9)}${long ? ` · ${MON3[+k.slice(5, 7) - 1]} ${a}–${b}` : ` ${a}–${b}`}`; }
+  const dt = new Date(k + 'T00:00:00Z'); return `${DOW3[dt.getUTCDay()]} ${+k.slice(8)}${long ? ' ' + MON3[+k.slice(5, 7) - 1] : ''}`;
+}
+const parentKey = k => { const lv = lvlOf(k); return lv === 'year' ? null : lv === 'month' ? k.slice(0, 4) : lv === 'week' ? k.slice(0, 7) : lv === 'day' ? `${k.slice(0, 7)}-W${wom(k)}` : null; };
+function tlChartR(st) {
+  const view = st.view || null, kids = kidsOf(view), base = st.all.filter(r => inKey(String(r[0]).slice(0, 10), view));
+  const cnt = kids.map(() => 0), ex = kids.map(() => ({ crit: 0, open: 0, amt: 0, hrs: 0 }));
+  base.forEach(r => { const d = String(r[0]).slice(0, 10), i = kids.findIndex(k => inKey(d, k)); if (i < 0) return; cnt[i]++; const e = ex[i];
+    if (r[2] === 'critical') e.crit++;
+    if (['Open', 'In Progress', 'Waiting Parts'].includes(r[3])) e.open++;
+    if (typeof r[3] === 'number') e.amt += r[3]; else if (typeof r[2] === 'number') e.hrs += r[2]; });
+  const tip = i => `${keyLabel(kids[i], true)} · ${cnt[i]} record${cnt[i] === 1 ? '' : 's'}${ex[i].crit ? ` · ${ex[i].crit} critical` : ''}${ex[i].open ? ` · ${ex[i].open} open` : ''}${ex[i].amt ? ` · ${usd(ex[i].amt)}` : ''}${ex[i].hrs ? ` · ${Math.round(ex[i].hrs)} h` : ''}${cnt[i] ? (lvlOf(kids[i]) === 'day' ? ' · tap to pick' : ' · tap to drill in') : ''}`;
+  const W = 340, H = 58, pl = 4, pr = 4, top = 12, base0 = 42, bw = (W - pl - pr) / kids.length, mx = Math.max(1, ...cnt), peak = cnt.indexOf(mx);
+  const sel = st.sel || null;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Records by ${lvlOf(kids[0])}">`;
+  s += `<line x1="0" y1="${base0}" x2="${W}" y2="${base0}" class="tl-base"/>`;
+  cnt.forEach((c, i) => {
+    const h = c ? Math.max(2, (base0 - top) * c / mx) : 0, x = pl + i * bw, gap = kids.length > 12 ? 1 : Math.min(6, bw * .12);
+    s += `<g class="tl-m${sel === kids[i] ? ' on' : ''}${c ? '' : ' empty'}" data-mon="${kids[i]}" data-tip="${esc(tip(i))}"><rect x="${x}" y="${top - 6}" width="${bw}" height="${base0 - top + 12}" class="tl-hit"/>
+      ${c ? `<rect x="${x + gap}" y="${base0 - h}" width="${bw - 2 * gap}" height="${h}" rx="${Math.min(2, h / 2)}" class="tl-bar"/>` : ''}<title>${esc(keyLabel(kids[i], true))}: ${c}</title></g>`;
+    if (kids.length <= 12) s += `<text x="${x + bw / 2}" y="${H - 4}" class="tl-ax" text-anchor="middle">${esc(keyLabel(kids[i]))}</text>`;
+  });
+  if (kids.length > 12) s += `<text x="${pl}" y="${H - 4}" class="tl-ax">${keyLabel(kids[0])}</text><text x="${W - pr}" y="${H - 4}" class="tl-ax" text-anchor="end">${keyLabel(kids[kids.length - 1])}</text>`;
+  const deflt = cnt[peak] ? `peak ${cnt[peak]} · ${keyLabel(kids[peak], true)} · touch a bar for its data` : 'no records in this range';
+  s += `<text x="${W / 2}" y="${top - 4}" class="tl-ax tl-read" text-anchor="middle" data-default="${esc(deflt)}">${esc(deflt)}</text>`;
+  return `<div class="tl-chart">${s}</svg></div>`;
+}
+const monRows = st => st.sel ? st.all.filter(r => inKey(String(r[0]).slice(0, 10), st.sel)) : st.all;
+function monChip(st) {   // breadcrumb chips: All › 2026 › Mar 2026 › W3 · Mar 15–21 › Tue 17 Mar
+  const k = st.sel || st.view; if (!k) return '';
+  const chain = []; for (let x = k; x; x = parentKey(x)) chain.unshift(x);
+  const cur = st.sel;
+  return `<div class="monbar"><span class="tlcrumbs"><button type="button" class="tlc" data-tlgo="">All</button>${chain.map(x => `<span class="sep">›</span><button type="button" class="tlc${x === cur ? ' on' : ''}" data-tlgo="${x}">${esc(keyLabel(x, true))}</button>`).join('')}</span><span class="mut">${st.rows.length} of ${st.all.length}</span></div>`;
+}
 const pgWrap = st => `<div class="pgwrap">${monChip(st)}${pagedList(st.m, st.rows, st.hit)}</div>`;
-function monFilter(container, st, mon, o = {}) {
-  const prev = st.mon, next = o.set ? mon : st.mon === mon ? null : mon;
-  if (next && !st.all.some(r => String(r[0]).startsWith(next))) return o.quiet ? null : toast(`No records in ${mlabelY(next)}`);
-  if (o.set && next === prev) return;
-  st.mon = next; st.rows = monRows(st);
-  if (container.id === 'swBody') { SW.mon = st.mon; SW.rows = st.rows; }
-  container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === st.mon));
+function tlRedraw(container, st, prevSel, chartToo) {
+  if (chartToo) { const ch = container.querySelector('.tl-chart'); if (ch) ch.outerHTML = tlChartR(st); }
+  else container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === st.sel));
   const w = container.querySelector('.pgwrap');
-  if (w) {   // carousel: the new month slides in from the side you're moving toward
+  if (w) {   // carousel: the new range slides in from the side you're moving toward
     w.outerHTML = pgWrap(st);
-    const nw = container.querySelector('.pgwrap'), dir = prev && next ? (next > prev ? 'from-r' : 'from-l') : '';
+    const nw = container.querySelector('.pgwrap'), next = st.sel, dir = prevSel && next && lvlOf(prevSel) === lvlOf(next) ? (next > prevSel ? 'from-r' : 'from-l') : '';
     if (dir && nw) { nw.classList.add(dir); requestAnimationFrame(() => requestAnimationFrame(() => nw.classList.remove(dir))); }
   }
   const cnt = container.querySelector('.reccnt'); if (cnt) cnt.textContent = st.rows.length;
-  if (o.quiet) { if (navigator.vibrate) try { navigator.vibrate(4); } catch (e) {} return; }
+  if (container.id === 'swBody') SW.rows = st.rows;
+}
+// tap (drill) or slide (o.set: flip at the same level). Kept the name: the scrubber calls it.
+function monFilter(container, st, key, o = {}) {
+  const prev = st.sel;
+  if (key && !st.all.some(r => inKey(String(r[0]).slice(0, 10), key))) return o.quiet ? null : toast(`No records in ${keyLabel(key, true)}`);
+  if (o.set) { if (key === prev) return; st.sel = key; st.rows = monRows(st); tlRedraw(container, st, prev, false); if (navigator.vibrate) try { navigator.vibrate(4); } catch (e) {} return; }
+  st.sel = key; if (lvlOf(key) !== 'day') st.view = key; st.rows = monRows(st);
+  tlRedraw(container, st, null, true);
   const chart = container.querySelector('.tl-chart'), sc = chart && chart.closest('.pk-b, .pb');
   if (sc && chart) sc.scrollTo({ top: Math.max(0, chart.offsetTop - sc.offsetTop - 4), behavior: 'smooth' });
-  toast(st.mon ? `${mlabelY(st.mon)} · ${st.rows.length} record${st.rows.length === 1 ? '' : 's'}` : `All months · ${st.rows.length} records`);
+  toast(`${keyLabel(key, true)} · ${st.rows.length} record${st.rows.length === 1 ? '' : 's'}`);
   if (navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
+}
+function tlGo(container, st, key) {   // crumb: jump to that level ('' = all time)
+  st.sel = key || null; st.view = key ? (lvlOf(key) === 'day' ? parentKey(key) : key) : null; st.rows = monRows(st);
+  tlRedraw(container, st, null, true);
+  toast(key ? `${keyLabel(key, true)} · ${st.rows.length} records` : `All time · ${st.rows.length} records`);
 }
 function openPeek(b, t) {
   const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
@@ -1183,13 +1254,13 @@ function openPeek(b, t) {
     sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
   } else {
     const all = recs(m, id), hit = item ? all.filter(r => r[1] === item) : all, rows = hit.length ? hit : all;
-    b.__pg = { m, all: rows, rows, hit: null, mon: null };
-    body = tlChart(rows) + pgWrap(b.__pg);
+    b.__pg = { m, all: rows, rows, hit: null, sel: null, view: null };
+    body = tlChartR(b.__pg) + pgWrap(b.__pg);
     sub = `${rows.length} record${rows.length === 1 ? '' : 's'} · ${titleOf(id)} · newest first`;
   }
   const el = document.createElement('div');
   el.className = 'peek'; el.__pgOf = b; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
-  el.addEventListener('click', e => { const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); if (e.target.closest('[data-clearmon]')) return monFilter(el, pg, pg.mon); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
+  el.addEventListener('click', e => { const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); const tg = e.target.closest('[data-tlgo]'); if (tg) return tlGo(el, pg, tg.dataset.tlgo); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
     <div class="pk-f">Lift your finger to keep this open</div>`;
@@ -1355,14 +1426,14 @@ function renderSub() {
         <span class="bv mono">${esc(i.vs)}</span></button>`).join('') || '<div class="note">Nothing recorded.</div>'}</div>`;
     const all = recs(m, id), hitRows = item ? all.filter(r => r[1] === item) : all;
     const showRows = hitRows.length ? hitRows : all;
-    const pg = SW.pg = { m, all: showRows, rows: showRows, hit: item, mon: SW.mon && showRows.some(r => String(r[0]).startsWith(SW.mon)) ? SW.mon : null };
-    pg.rows = monRows(pg); SW.mon = pg.mon; SW.rows = pg.rows;
+    const pg = SW.pg = { m, all: showRows, rows: showRows, hit: item, sel: null, view: null };
+    SW.rows = pg.rows;
     h += `<div class="sect" style="margin-top:6px">Records${item ? ` · ${esc(item)}` : ''} · <span class="reccnt">${pg.rows.length}</span> · newest first</div>`;
-    h += tlChart(showRows, pg.mon) + pgWrap(pg);
+    h += tlChartR(pg) + pgWrap(pg);
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && SW.pg) { monFilter($('swBody'), SW.pg, mo.dataset.mon); SW.mon = SW.pg.mon; SW.rows = SW.pg.rows; return; } if (e.target.closest('[data-clearmon]') && SW.pg) { monFilter($('swBody'), SW.pg, SW.pg.mon); SW.mon = null; SW.rows = SW.pg.rows; return; } const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.pg ? SW.pg.rows : SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; SW.mon = null; renderSub(); } });
+$('swBody').addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && SW.pg) return monFilter($('swBody'), SW.pg, mo.dataset.mon); const tg = e.target.closest('[data-tlgo]'); if (tg && SW.pg) return tlGo($('swBody'), SW.pg, tg.dataset.tlgo); const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.pg ? SW.pg.rows : SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
