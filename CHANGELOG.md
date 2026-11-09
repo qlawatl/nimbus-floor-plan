@@ -2,6 +2,10 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.6 — 2026-11-09 · branch `release/v10.6`
+- **The asset line on records now uses the same font as the record text** (no more monospace). The asset number stays bold, as it does in the table view.
+- **Removed the building tiles row** (E1-B1 / E1-B2 / W1-B1 / W1-B2 with the sparkline and spend). To move between buildings, use the cover page and the *All sites › site › building* breadcrumb.
+
 ## v10.5 — 2026-11-09 · branch `release/v10.5`
 - **Asset number and description on every detail record.** Work order, PO, invoice, alarm, alert and labor rows now show the asset under the record text, e.g. *A100022 · Carrier 19DV · Chiller*.
   - The asset is the one **installed at that position on the record's date**, taken from the position history. After a swap, older records show the asset that was there at the time, with an *earlier asset* tag. For example, E1-B1-CRAH-07 shows the Stulz A100033 before 2026-06-03 and the Vertiv A100040 after.
