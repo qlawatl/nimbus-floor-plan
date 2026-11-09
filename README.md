@@ -13,6 +13,8 @@ Open the artifact link, or `index.html` in any browser.
 
 **Triple-tap** anywhere to go back to the main page.
 
+**Cover page:** the app opens on a block plan of every site, with its operating buildings, storerooms and the central warehouse, under a Lumo brand header and an on-device site summary. Tap a building to open its floor plan; a breadcrumb (*All sites › site › building*) shows where you are on every view.
+
 **Site map and lineage:** "‹ Zoom out: site map" shows both buildings, the storeroom and offsite locations. Every asset has a **Lineage** button that draws where it has been (warehouse → storeroom bin → positions → repair depot …) and where it was 6 months ago. It opens on the **Journey map** (mock Northern Virginia vendor, warehouse and repair locations plus an E1 site mini-plan), with **From vendor** / **Repair loop** modes and **▶ Replay route**. Positions list their tracked **components** (breaker elements, VFD drives).
 
 Also included: search (units, alarm codes, vendors, technicians), building tiles, the month slider / ▶, and a detail panel with Overview, Flow, Connections and Activity tabs.
