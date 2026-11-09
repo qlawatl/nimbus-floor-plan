@@ -2,6 +2,16 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.3 — 2026-11-09 · branch `release/v10.3`
+- **Time drill on the record timeline: all months → month → week → day.** In the details and records windows, tapping a bar now drills in rather than only filtering:
+  - **Month** (`YYYY-MM`): the chart re-bins into that month's weeks.
+  - **Week** (`YYYY-MM-Wn`, week of month: W1 = days 1–7, W2 = 8–14 … W5 = 29–31): the chart shows that week's days, labeled *Tue 22*.
+  - **Day** (`YYYY-MM-DD`): the list narrows to that date, and the day bars stay so you can pick a neighboring day.
+  - **Breadcrumb chips** above the list (*All › 2026 › Sep 2026 › W4 · Sep 22–28 › Tue 22 Sep*) jump straight back to any level; **2026** shows that year's months.
+  - **Sliding** across the bars still flips through them at the current level (months, weeks or days) without changing level.
+- The readout shows the full label for the bar under your finger (*W4 · Sep 22–28 · 6 records · tap to drill in*).
+- The table view keeps its month filter.
+
 ## v10.2 — 2026-11-09 · branch `release/v10.2`
 - **Priority icons in the header of every record row**, in the details and records windows and as a Priority column in the table view. Each level has its own shape and color, so it reads at a glance even without color:
   - **Work orders, priority 1–5:** ① red octagon *Emergency* · ② orange triangle *Urgent* · ③ amber diamond *High* · ④ blue circle *Routine* · ⑤ gray square *Planned*, shown with the type (CM or PM).
