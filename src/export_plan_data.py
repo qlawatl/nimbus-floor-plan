@@ -105,6 +105,85 @@ for pid, row in spiv.iterrows():
         add(pid, "warning", "spend_spike", "Spend spike",
             f"${row[peak_m]:,.0f} invoiced in {peak_m}, {row[peak_m] / med:.0f}x its typical month.")
 
+# v10.9: more insight types, each judged against the unit's peers (same asset class)
+ASOF = pd.Timestamp("2026-10-31 23:59")
+def peer_med(series):
+    return series.groupby(series.index.map(cls_of)).median()
+
+# PMs closing late
+pmx = pm.set_index("id"); pmx = pmx[pmx.pm_done >= 4]
+late = (pmx.pm_late / pmx.pm_done)
+lmed = peer_med(late)
+for pid, v in late.items():
+    m = lmed[cls_of[pid]]
+    if v >= 0.4 and v >= 2 * max(m, 0.1):
+        add(pid, "warning", "pm_late", "PMs running late",
+            f"{int(pmx.pm_late[pid])} of {int(pmx.pm_done[pid])} PMs closed after their due date ({v:.0%}, peers {m:.0%}).")
+
+# slow response: alarm raised to work order opened
+resp = df("""SELECT w.position_id id, median(epoch(w.opened_ts - a.raised_ts) / 3600) hrs, count(*) n
+FROM cmms_work_orders w JOIN bms_alarms a ON a.alarm_id = w.source_alarm_id
+WHERE a.severity IN ('critical', 'major') GROUP BY 1""").set_index("id")
+resp = resp[resp.n >= 6]; rmed = peer_med(resp.hrs)
+for pid, r in resp.iterrows():
+    m = rmed[cls_of[pid]]
+    if r.hrs >= 8 and r.hrs >= 1.75 * max(m, 1):
+        add(pid, "warning", "slow_response", "Slow alarm response",
+            f"Median {r.hrs:.0f} h from critical/major alarm to work order, {r.hrs / m:.1f}x its peers ({m:.0f} h).")
+
+# pages nobody acknowledged
+unack = df("""SELECT x.position_id id, count(*) n, count(*) FILTER (WHERE NOT n.acknowledged) un
+FROM notify_alerts n JOIN alarm_xwalk x USING (alarm_id)
+WHERE n.sent_ts >= TIMESTAMP '2026-05-01' GROUP BY 1""").set_index("id")
+for pid, r in unack.iterrows():
+    if r.un >= 3 and r.un / r.n >= 0.25:
+        add(pid, "warning", "unacked_pages", "Pages not acknowledged",
+            f"{int(r.un)} of {int(r.n)} pages since May 2026 were never acknowledged.")
+
+# work orders sitting open
+aging = df("""SELECT position_id id, wo_id, status, opened_ts FROM cmms_work_orders
+WHERE status <> 'Closed' QUALIFY row_number() OVER (PARTITION BY position_id ORDER BY opened_ts) = 1""")
+for r in aging.itertuples():
+    days = (ASOF - pd.Timestamp(r.opened_ts)).days
+    if days >= 21:
+        add(r.id, "warning" if days >= 45 else "info", "aging_wo", "Work order aging",
+            f"{r.wo_id} open {days} days, status {r.status.lower()}.")
+
+# repair cost per corrective WO rising
+cost = df("""SELECT w.position_id id, (w.opened_ts >= TIMESTAMP '2026-05-01') recent, count(DISTINCT w.wo_id) n, sum(i.amount) amt
+FROM cmms_work_orders w JOIN erp_purchase_orders p ON p.wo_id = w.wo_id JOIN erp_invoices i ON i.po_number = p.po_number
+WHERE w.wo_type = 'CM' GROUP BY 1, 2""")
+cp = cost.pivot_table(index="id", columns="recent", values=["n", "amt"], aggfunc="sum").fillna(0)
+for pid, r in cp.iterrows():
+    n0, n1 = r[("n", False)], r[("n", True)]
+    if n0 >= 4 and n1 >= 3:
+        c0, c1 = r[("amt", False)] / n0, r[("amt", True)] / n1
+        if c1 >= 1.6 * c0 and c1 - c0 >= 1500:
+            add(pid, "info", "cost_creep", "Repair cost rising",
+                f"Average corrective repair ${c1:,.0f} since May 2026, was ${c0:,.0f}.")
+
+# rush and long-lead buying
+pos_po = df("""SELECT w.position_id id, count(*) n, sum(p.rush::INT) rush,
+  count(*) FILTER (WHERE p.lead_days >= 30 AND p.created_ts >= TIMESTAMP '2026-08-01') longlead, max(p.lead_days) FILTER (WHERE p.created_ts >= TIMESTAMP '2026-08-01') maxlead
+FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id) GROUP BY 1""").set_index("id")
+for pid, r in pos_po.iterrows():
+    if r.n >= 6 and r.rush / r.n >= 0.45:
+        add(pid, "info", "rush_buying", "Frequent rush orders",
+            f"{int(r.rush)} of {int(r.n)} POs were rush orders. Stocking a spare could cut expediting cost.")
+    if r.longlead >= 2:
+        add(pid, "info", "long_lead", "Long-lead parts on order",
+            f"{int(r.longlead)} POs since Aug 2026 with lead times up to {int(r.maxlead / 7)} weeks.")
+
+# labor-heavy repairs
+lab = df("""SELECT w.position_id id, count(DISTINCT w.wo_id) n, sum(a.labor_hours) hrs
+FROM cmms_work_orders w JOIN cmms_activities a USING (wo_id) WHERE w.wo_type = 'CM' GROUP BY 1""").set_index("id")
+lab = lab[lab.n >= 8]; per = lab.hrs / lab.n; pmed = peer_med(per)
+for pid, v in per.items():
+    m = pmed[cls_of[pid]]
+    if v >= 1.8 * m and v >= 6:
+        add(pid, "info", "labor_heavy", "Labor-heavy repairs",
+            f"{v:.1f} labor hours per corrective WO, peers {m:.1f}.")
+
 for r in hist.groupby("id").filter(lambda g: len(g) > 1).query("installed_to.notna()", engine="python").itertuples():
     add(r.id, "info", "asset_swap", "Asset replaced",
         f"{r.asset_tag} ({r.manufacturer} {r.model}) removed {pd.Timestamp(r.installed_to):%Y-%m-%d}. History stays with the position.")
