@@ -227,6 +227,26 @@ h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-w
 .tl-chart svg { touch-action: pan-y; }
 li.flash { animation: flash 1.6s ease; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 100% { background: transparent; } }
+.lock { position: fixed; inset: 0; z-index: 100; background: var(--paper); display: grid; place-items: center; padding: 20px; }
+.lock[hidden] { display: none; }
+.lockcard { width: min(400px, 100%); background: var(--sheet); border: 1px solid var(--line-soft); border-radius: 16px; padding: 22px; display: grid; gap: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.12); }
+.lk-badge { font: 600 12px var(--font-ui); color: var(--accent); letter-spacing: .04em; }
+.lockcard h2 { margin: 0; font-size: 20px; } .lk-meta { font: 12px var(--font-mono); color: var(--ink-3); }
+.lockcard label { font: 600 12px var(--font-ui); color: var(--ink-2); margin-top: 6px; }
+.lockcard input, .noteform textarea { width: 100%; border: 1px solid var(--line-soft); border-radius: 10px; padding: 11px 12px; font: 16px var(--font-ui); background: var(--paper); color: var(--ink); }
+.lockcard button { height: 44px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: 600 15px var(--font-ui); cursor: pointer; }
+.lockcard button:disabled { opacity: .7; }
+.lk-err { color: var(--crit); font-size: 13px; min-height: 16px; } .lk-note { font-size: 12px; color: var(--ink-3); margin: 0; }
+.snapbar { position: fixed; top: 0; left: 0; right: 0; z-index: 15; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 14px; background: color-mix(in srgb, var(--accent) 9%, var(--sheet)); border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.snapbar[hidden] { display: none; }
+body.has-snap .wrap { padding-top: 54px; }
+.snapbar span { color: var(--ink-2); } .sb-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; } .sb-dot.on { background: var(--good); } .sb-dot.off { background: var(--warn); }
+.sb-btn { margin-left: auto; border: 1px solid var(--accent); background: var(--sheet); color: var(--accent); border-radius: 14px; padding: 4px 10px; font: 600 12px var(--font-ui); cursor: pointer; }
+.sb-btn + .sb-btn { margin-left: 0; }
+.sb-btn i { font-style: normal; background: var(--warn); color: #0b0b0b; border-radius: 8px; padding: 0 5px; margin-left: 3px; }
+.noteform { padding: 16px; display: grid; gap: 8px; } .noteform h3 { margin: 0; }
+.nf-btns { display: flex; gap: 8px; justify-content: flex-end; } .nf-btns .pk-open { width: auto; margin: 0; padding: 9px 16px; }
+.pk-open:disabled { opacity: .5; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -361,7 +381,7 @@ li.flash { animation: flash 1.6s ease; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v8.4 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v9 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -435,7 +455,36 @@ li.flash { animation: flash 1.6s ease; }
   <div class="pb" id="swBody"></div>
   <div class="foot"><span class="dthint">Double-tap to close</span><button type="button" id="swPanel" class="primary">Open equipment details</button></div>
 </section>
-<script type="application/octet-stream" id="dataz">/*__DATAZ__*/</script>
+<div class="snapbar" id="snapbar" hidden role="status"></div>
+<div class="subscrim" id="notescrim" hidden style="z-index:63"></div>
+<section class="subwin notewin" id="notewin" hidden role="dialog" aria-labelledby="noteH" style="z-index:64">
+  <form id="noteForm" class="noteform">
+    <h3 id="noteH">Field note</h3><div class="crumb" id="noteFor"></div>
+    <label for="noteText" class="sect">What did you see or do?</label>
+    <textarea id="noteText" rows="5" required placeholder="e.g. Belt glazing on fan 2, replaced; vibration back to normal."></textarea>
+    <div class="nf-btns"><button type="button" class="tbtn" id="noteCancel">Cancel</button><button type="submit" class="pk-open">Save to outbox</button></div>
+    <p class="note">Encrypted on this device. Forwarded automatically when you're online.</p>
+  </form>
+</section>
+<div class="lock" id="lock" hidden>
+  <form class="lockcard" autocomplete="off">
+    <div class="lk-badge">🔒 Encrypted offline snapshot</div>
+    <h2 id="lkSite"></h2>
+    <div class="lk-meta" id="lkMeta"></div>
+    <label for="lkPass">Passphrase</label>
+    <input id="lkPass" type="password" autocomplete="current-password" required>
+    <button type="submit">Unlock</button>
+    <div class="lk-err" id="lkErr" role="alert"></div>
+    <p class="lk-note">Decrypted in memory on this device only. Nothing is sent anywhere. Lock or close the page to wipe it.</p>
+  </form>
+</div>
+<div class="subscrim" id="outscrim" hidden style="z-index:61"></div>
+<section class="subwin outwin" id="outwin" hidden role="dialog" aria-labelledby="outTitle" style="z-index:62">
+  <div class="grab" style="display:block"></div>
+  <div class="ph"><div class="ph-top"><div><h3 id="outTitle">Field notes outbox</h3><div class="crumb" id="outCrumb"></div></div><button class="x" id="outClose" aria-label="Close">×</button></div></div>
+  <div class="pb" id="outBody"></div>
+</section>
+<script type="application/octet-stream" id="dataz"/*__DATAZ_ATTRS__*/>/*__DATAZ__*/</script>
 <script>
 /*
   Nimbus Site Floor Plan. Single-file app, no libraries. Data is injected at build time (build.py).
@@ -446,9 +495,38 @@ li.flash { animation: flash 1.6s ease; }
   Versions and what changed in each: CHANGELOG.md (lists the commit for each release).
 */
 // data ships gzip-compressed + base64 (≈5x smaller); the browser unpacks it on load
+let SNAPKEY = null, SNAP = null;   // set only for encrypted site snapshots
+const b64u8 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const u8b64 = u => btoa(String.fromCharCode(...u));
+// encrypted snapshot: AES-256-GCM, key from passphrase via PBKDF2-SHA256; decrypted only in memory
+function unlockSnapshot(el) {
+  const meta = el.dataset;
+  SNAP = { site: meta.site, asof: meta.asof, ver: meta.ver, built: meta.built };
+  const L = document.getElementById('lock');
+  L.querySelector('#lkSite').textContent = `${meta.siteName || meta.site} · snapshot ${meta.ver}`;
+  L.querySelector('#lkMeta').textContent = `Data as of ${meta.asof} · built ${meta.built} · AES-256-GCM · PBKDF2 ${Number(meta.iter).toLocaleString()} rounds`;
+  L.hidden = false; L.querySelector('#lkPass').focus();
+  return new Promise(resolve => {
+    L.querySelector('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = L.querySelector('button'), err = L.querySelector('#lkErr');
+      btn.disabled = true; btn.textContent = 'Unlocking…'; err.textContent = '';
+      try {
+        const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(L.querySelector('#lkPass').value), 'PBKDF2', false, ['deriveKey']);
+        const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u8(meta.salt), iterations: Number(meta.iter), hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u8(meta.iv), additionalData: b64u8(meta.aad) }, key, b64u8(el.textContent.trim()));
+        SNAPKEY = key; L.querySelector('#lkPass').value = ''; L.hidden = true;
+        resolve(new Uint8Array(plain));
+      } catch (x) {
+        err.textContent = 'Wrong passphrase, or the snapshot has been altered.';
+        btn.disabled = false; btn.textContent = 'Unlock';
+      }
+    });
+  });
+}
 async function loadData() {
-  const raw = document.getElementById('dataz').textContent.trim();
-  const bin = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+  const el = document.getElementById('dataz');
+  const bin = el.dataset.enc ? await unlockSnapshot(el) : b64u8(el.textContent.trim());
   const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
   return JSON.parse(await new Response(stream).text());
 }
@@ -457,7 +535,7 @@ let D;
 try { D = await loadData(); }
 catch (err) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:16px;font:15px system-ui">This browser can\'t unpack the data. Update to iOS 16.4+ / a current browser.</p>'); return; }
 const P = D.positions, M = D.months;
-const BLD = ['E1-B1', 'E1-B2', 'W1-B1', 'W1-B2'];
+const BLD = [...new Set(Object.keys(P).map(id => id.slice(0, 5)))].sort();
 const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection' };
 const POWER = new Set(['GEN', 'ATS', 'SWGR', 'UPS', 'PDU']);
 const SEVR = { critical: 3, warning: 2, info: 1 };
@@ -992,9 +1070,9 @@ document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
-const TAPSEL = '[data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], tr[data-ent], li[data-step], .lcrow, .brow';
+const TAPSEL = '[data-note], [data-fwd], [data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], tr[data-ent], li[data-step], .lcrow, .brow';
 const TAPX = { el: null, x: 0, y: 0, until: 0, fired: null };
-document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .tblwin, .panel') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
+document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .tblwin, .panel, .outwin') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
 document.addEventListener('pointerup', e => {
   const el = TAPX.el; TAPX.el = null;
   if (!el || Math.hypot(e.clientX - TAPX.x, e.clientY - TAPX.y) > 10 || !(e.target.closest && e.target.closest(TAPSEL) === el)) return;
@@ -1284,6 +1362,7 @@ function overview(id, p) {
   h += `<div class="chart"><div class="sect">Alarms per month</div><div class="readout" id="ro-a"></div>${spark(p.ma, 'bar', 'ro-a', v => `${v} alarms`)}</div>`;
   h += `<div class="chart"><div class="sect">Invoiced spend per month</div><div class="readout" id="ro-s"></div>${spark(p.ms, 'area', 'ro-s', v => usd(v))}</div>`;
   h += `<button type="button" class="pk-open" data-lin="${p.asset.id}">Show lineage: where this unit has been ›</button>`;
+  if (SNAP) h += `<button type="button" class="pk-open" data-note="${id}">✎ Add field note (works offline)</button>`;
   h += `<div><div class="sect">Equipment in this position</div><dl class="kv"><dt>Asset tag</dt><dd>${esc(p.asset.tag)}</dd><dt>Make / model</dt><dd>${esc(p.asset.mfr)} ${esc(p.asset.model)}</dd><dt>Serial</dt><dd>${esc(p.asset.serial)}</dd><dt>Installed</dt><dd>${esc(p.asset.since)}</dd></dl></div>`;
   if (p.hist.length > 1) h += `<div><div class="sect">Install history</div><div class="hist">${p.hist.map(x => `<div><i class="${x.to ? '' : 'cur'}"></i><span><span class="mono">${esc(x.tag)}</span> · ${esc(x.mfr)} ${esc(x.model)}<br><span class="note">${x.frm} → ${x.to || 'present'}</span></span></div>`).join('')}</div></div>`;
   if (p.codes.length) h += `<div><div class="sect">Top alarm codes</div>${p.codes.map(c => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(c.code)}</span><span class="mono">${c.n}</span></div>`).join('')}</div>`;
@@ -1799,7 +1878,7 @@ function openUnitPeek(b, id) {
     <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     ${fs.length ? `<div class="sect" style="margin-top:8px">Findings</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
     ${recent}
-    ${Z ? '' : `<div class="pk-btns"><button type="button" class="pk-open" data-lin="${p.asset.id}">Lineage ›</button><button type="button" class="pk-open" data-open="${id}">Open full details ›</button></div>`}</div>
+    ${Z ? '' : `<div class="pk-btns"><button type="button" class="pk-open" data-lin="${p.asset.id}">Lineage ›</button><button type="button" class="pk-open" data-open="${id}">Open full details ›</button></div>${SNAP ? `<button type="button" class="pk-open" data-note="${id}">✎ Add field note (works offline)</button>` : ''}`}</div>
     <div class="pk-f"></div>`;
   b.g.appendChild(el);
   requestAnimationFrame(() => el.classList.add('on'));
@@ -1958,6 +2037,58 @@ gestures($('linwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeLineag
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && CUR && $('lcwin').hidden && $('subwin').hidden) { e.preventDefault(); navBack(); } });
 
 $('zoomBtn').onclick = () => zoomTo(S.view === 'site' ? 'building' : 'site');
+/* ---------- store-and-forward: snapshot banner + encrypted field-note outbox ---------- */
+const OBX_KEY = () => `nimbus.outbox.${SNAP.site}`;
+const nowLocal = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16).replace('T', ' '); };
+let OUTBOX = [];
+async function obxEncrypt(obj) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, SNAPKEY, new TextEncoder().encode(JSON.stringify(obj)))); return { iv: u8b64(iv), ct: u8b64(ct) }; }
+async function obxDecrypt(rec) { return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u8(rec.iv) }, SNAPKEY, b64u8(rec.ct)))); }
+async function obxLoad() { try { const arr = JSON.parse(localStorage.getItem(OBX_KEY()) || '[]'); OUTBOX = await Promise.all(arr.map(obxDecrypt)); } catch (e) { OUTBOX = []; } }
+async function obxSave() { try { localStorage.setItem(OBX_KEY(), JSON.stringify(await Promise.all(OUTBOX.map(obxEncrypt)))); } catch (e) { /* storage unavailable: notes stay in memory for this session */ } renderSnapBar(); }
+function renderSnapBar() {
+  if (!SNAP) return;
+  const q = OUTBOX.filter(n => n.status === 'queued').length;
+  $('snapbar').innerHTML = `<span class="sb-dot ${navigator.onLine ? 'on' : 'off'}"></span><b>${esc(SNAP.site)} snapshot</b><span>as of ${esc(SNAP.asof)} · ${esc(SNAP.ver)} · encrypted</span>
+    <button type="button" class="sb-btn" data-outbox>Outbox${q ? ` <i>${q}</i>` : ''}</button><button type="button" class="sb-btn" data-lock>🔒 Lock</button>`;
+  $('snapbar').hidden = false; document.body.classList.add('has-snap');
+}
+async function addNote(pid, text) {
+  OUTBOX.push({ id: 'FN-' + Date.now().toString(36).toUpperCase(), pid, text, ts: nowLocal(), status: 'queued' });
+  await obxSave(); toast(navigator.onLine ? 'Note saved · forwarding…' : 'Saved offline · will forward when connected'); forward();
+}
+// forward queued notes when online (demo: no server attached, so the "send" is simulated and returns a receipt)
+let fwdBusy = false;
+async function forward() {
+  if (fwdBusy || !navigator.onLine || !OUTBOX.some(n => n.status === 'queued')) return renderOutbox();
+  fwdBusy = true; await new Promise(r => setTimeout(r, 700));
+  OUTBOX.forEach(n => { if (n.status === 'queued') { n.status = 'forwarded'; n.receipt = 'RCPT-' + Math.random().toString(36).slice(2, 8).toUpperCase(); n.sent = nowLocal(); } });
+  fwdBusy = false; await obxSave(); renderOutbox();
+}
+window.addEventListener('online', () => { renderSnapBar(); forward(); });
+window.addEventListener('offline', renderSnapBar);
+function renderOutbox() {
+  if ($('outwin').hidden) return;
+  const q = OUTBOX.filter(n => n.status === 'queued').length;
+  $('outCrumb').textContent = `${OUTBOX.length} note${OUTBOX.length === 1 ? '' : 's'} · ${q} queued · ${navigator.onLine ? 'online' : 'offline: will forward when connected'}`;
+  $('outBody').innerHTML = `<div class="note">Notes are encrypted with the snapshot key and stored on this device until forwarded. <b>Demo:</b> no server is attached, so forwarding is simulated and returns a receipt.</div>
+    <button type="button" class="pk-open" data-fwd ${!q ? 'disabled' : ''}>${navigator.onLine ? 'Forward now' : 'Offline · queued'}</button>
+    <ul class="tl">${OUTBOX.slice().reverse().map(n => `<li><span class="when">${n.ts.slice(0, 10)}<br>${n.ts.slice(11)}</span><span class="what"><b>${esc(titleOf(n.pid))}</b> <span class="mono" style="font-size:11px;color:var(--ink-3)">${n.id}</span><div>${esc(n.text)}</div></span><span class="amt">${n.status === 'queued' ? '<span class="sevtag warning">queued</span>' : `<span class="sevtag info">sent</span><br><small class="mono">${n.receipt}</small>`}</span></li>`).join('') || '<li><span></span><span class="what">No field notes yet. Add one from a unit\'s details.</span><span></span></li>'}</ul>`;
+}
+function openOutbox() { $('outwin').hidden = false; $('outscrim').hidden = false; requestAnimationFrame(() => $('outwin').classList.add('open')); renderOutbox(); }
+function closeOutbox() { $('outwin').classList.remove('open'); $('outwin').hidden = true; $('outscrim').hidden = true; }
+$('outClose').onclick = closeOutbox; $('outscrim').onclick = closeOutbox;
+$('outBody').addEventListener('click', e => { if (e.target.closest('[data-fwd]')) forward(); });
+$('snapbar').addEventListener('click', e => { if (e.target.closest('[data-outbox]')) openOutbox(); if (e.target.closest('[data-lock]')) { SNAPKEY = null; location.reload(); } });
+// field-note composer (encrypted builds only)
+function openNote(pid) {
+  $('noteFor').textContent = `${titleOf(pid)} · ${pid}`; $('noteText').value = ''; $('notewin').dataset.pid = pid;
+  $('notewin').hidden = false; $('notescrim').hidden = false; requestAnimationFrame(() => { $('notewin').classList.add('open'); $('noteText').focus(); });
+}
+function closeNote() { $('notewin').classList.remove('open'); $('notewin').hidden = true; $('notescrim').hidden = true; }
+$('noteCancel').onclick = closeNote; $('notescrim').onclick = closeNote;
+$('noteForm').addEventListener('submit', async e => { e.preventDefault(); const tx = $('noteText').value.trim(); if (!tx) return; const pid = $('notewin').dataset.pid; closeNote(); await addNote(pid, tx); });
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-note]'); if (b) openNote(b.dataset.note); });
+if (SNAP) { await obxLoad(); renderSnapBar(); forward(); }
 function renderAll() { renderControls(); renderKpis(); drawPlan(); renderLegend(); renderFindings(); renderPanel(); }
 
 // desktop opens in a working state: show the first critical finding in the current building
