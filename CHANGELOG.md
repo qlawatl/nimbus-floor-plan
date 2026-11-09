@@ -2,6 +2,13 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v9 — 2026-11-08 · branch `release/v9-site-e1` · store-and-forward demo
+- **`build_site.py SITE "passphrase"`** builds an **encrypted single-site offline snapshot**. It filters the data to one site (E1: 86 positions, 95 assets with E1 history, E1 storeroom + central warehouse), gzips it, and encrypts it with **AES-256-GCM** using a key derived from the passphrase with **PBKDF2-SHA256 (310,000 rounds)**. The unencrypted manifest (site, version, as-of, build date) is bound to the ciphertext as associated data, so a changed manifest or ciphertext fails to unlock. The page is about 530 KB.
+- **Unlock screen:** passphrase → decrypted in memory only (never written to disk). "Wrong passphrase, or the snapshot has been altered" on failure. **🔒 Lock** wipes it by reloading.
+- **Snapshot bar:** online/offline dot · site · *as of* date · version · "encrypted" · Outbox · Lock.
+- **Field notes outbox (store and forward):** "✎ Add field note" on any unit (in the panel or the unit details window). Notes are encrypted with the snapshot key and stored on the device (localStorage, ciphertext only), and forwarded automatically when the device comes online. **Demo:** no server is attached, so forwarding is simulated and returns a receipt ID; in production this POSTs to the sync API.
+- The building list now comes from the data, so single-site builds show only their own buildings.
+
 ## v8.4 — 2026-11-08 · branch `release/v8.4`
 - **Fix: "Load 25 more" on phones.** Buttons and rows inside the scrolling details, records, table and panel windows now act when your finger lifts, instead of waiting for the browser's click event, which iOS can drop inside a scrolling panel. The native click that follows is ignored, so nothing fires twice. After loading, the list scrolls to the first new row, flashes it, and a toast shows "Loaded 25 more · 50 of 86".
 - **Fix: timeline readout on phones.** It reset the moment your finger lifted, so it only flashed. On touch it now stays on the last month you touched or slid to; it still resets when a mouse leaves.

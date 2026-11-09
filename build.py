@@ -10,6 +10,6 @@ if "--regen" in sys.argv:
 import base64, gzip
 raw = open(p("data", "plan_data.json"), "rb").read()
 data = base64.b64encode(gzip.compress(raw, 9)).decode()   # page unpacks with DecompressionStream
-html = open(p("src", "plan_template.html")).read().replace("/*__DATAZ__*/", data)
+html = open(p("src", "plan_template.html")).read().replace("/*__DATAZ_ATTRS__*/", "").replace("/*__DATAZ__*/", data)
 open(p("index.html"), "w").write(html)
 print(f"index.html written ({len(html) // 1024} KB)")

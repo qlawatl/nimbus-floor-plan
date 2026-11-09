@@ -17,6 +17,13 @@ Open the artifact link, or `index.html` in any browser.
 
 Also included: search (units, alarm codes, vendors, technicians), building tiles, the month slider / ▶, and a detail panel with Overview, Flow, Connections and Activity tabs.
 
+## Encrypted single-site snapshot (store-and-forward demo)
+```bash
+pip install cryptography
+python build_site.py E1 "your-passphrase"     # writes nimbus_E1_offline.html (AES-256-GCM, PBKDF2-SHA256 310k)
+```
+Open the file, enter the passphrase, and work offline. Field notes queue encrypted on the device and forward when the device is online (simulated in the demo).
+
 ## Rebuilding
 ```bash
 pip install duckdb pandas numpy pyarrow
