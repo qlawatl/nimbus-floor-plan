@@ -233,6 +233,39 @@ for site, classes in {"E1": ["UPS", "PUMP", "CH"], "W1": ["CRAH", "UPS", "GEN"]}
                            serial=f"SN{int(rng2.integers(10**7, 10**8))}", commissioned=None))
         cls_a[aid] = cls; mfr_a[aid] = mfr
         receive(aid, site, when + pd.Timedelta(days=45)); spare_ids.append((aid, site))
+# components that rack into / mount in a position: Eaton drawout breakers (switchgear) and ABB drives (pump VFDs)
+COMP_CLS = {"BRKR": ("Eaton", "VCP-W 15kV drawout breaker", "Eaton Service Center", "Racked into switchgear cubicle"),
+            "VFD": ("ABB", "ACS880 drive", "ABB Drive Service", "Mounted in pump starter")}
+comp_at = {}
+def new_comp(cls, site, install_ts, pid=None):
+    asset_seq[0] += 1
+    aid = f"A{asset_seq[0]}"; mfr, model, _, how = COMP_CLS[cls]
+    assets.append(dict(asset_id=aid, asset_tag=f"TAG-{cls}-{asset_seq[0]}", asset_class=cls, manufacturer=mfr, model=model,
+                       serial=f"SN{int(rng2.integers(10**7, 10**8))}", commissioned=install_ts if pid else None))
+    cls_a[aid] = cls; mfr_a[aid] = mfr
+    b = receive(aid, site, install_ts)
+    if pid: mv(aid, install_ts, "installed", f"{SR[site]}:{b}", pid, "Commissioning", how); comp_at[pid] = aid
+    return aid, b
+for cls, pids in {"BRKR": [f"E1-B{b}-SWGR-0{i}" for b in (1, 2) for i in (1, 2)],
+                  "VFD": [f"E1-B{b}-PUMP-0{i}" for b in (1, 2) for i in range(1, 5)]}.items():
+    for pid in pids: new_comp(cls, "E1", install_lookup[pid][0][0], pid)
+spares_c = {cls: [new_comp(cls, "E1", START + pd.Timedelta(days=float(rng2.uniform(30, 200))))[0] for _ in range(2)] for cls in COMP_CLS}
+def repair_loop(pid, cls, t_out, why):
+    # the unit in service comes out, goes to quarantine, out to the vendor for repair, and back into stock; a spare goes in
+    old, (_, _, depot, how) = comp_at[pid], COMP_CLS[cls]
+    spare = spares_c[cls].pop(0)
+    last = [m for m in moves if m["asset_id"] == spare][-1]["to_loc"]
+    mv(old, t_out, "removed", pid, "E1-SR:QUARANTINE", f"WO-{why}", "Removed after fault")
+    mv(spare, t_out + pd.Timedelta(hours=3), "installed", last, pid, f"WO-{why}", f"Spare issued from stock. {how}")
+    t_ship = t_out + pd.Timedelta(days=3)
+    mv(old, t_ship, "sent_for_repair", "E1-SR:QUARANTINE", f"DEPOT:{depot}", f"RMA-{int(rng2.integers(1000, 9999))}", "Shipped to vendor for repair")
+    t_back = t_ship + pd.Timedelta(days=float(rng2.uniform(28, 40)))
+    b = rbin()
+    mv(old, t_back, "returned", f"DEPOT:{depot}", f"E1-SR:{b}", None, f"Repaired by vendor. Back into stock, bin {b}")
+    comp_at[pid] = spare
+repair_loop("E1-B1-SWGR-02", "BRKR", pd.Timestamp("2026-05-12 09:00"), "BRKR-TRIP")
+repair_loop("E1-B2-PUMP-03", "VFD", pd.Timestamp("2026-08-04 13:30"), "VFD-FAULT")
+
 aid, _ = spare_ids[4]   # a W1 UPS spare loaned to E1
 t = pd.Timestamp("2026-07-14 09:30")
 last_bin = [m for m in moves if m["asset_id"] == aid][-1]["to_loc"]
