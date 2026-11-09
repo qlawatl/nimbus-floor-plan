@@ -2,6 +2,9 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.1 — 2026-11-09 · branch `release/v10.1`
+- **Slide across the month bars to scrub through the records like a carousel.** In the details window and the records window, drag a finger (or the mouse) across the timeline and the list switches to each month as you pass over it. The new month slides in from the direction you're moving, with a light tick on phones. Lifting your finger keeps the last month. A plain tap still filters or clears one month. Empty months are skipped. The details window keeps its height while you scrub, so the bars stay under your finger.
+
 ## v10 — 2026-11-09 · branch `release/v10` · component lineage and journey map
 - **Tapping a month bar filters the list to that month.** This works in the details window and the records window. A chip ("Sep 2026 ×") and a "5 of 81 records" count appear, and the bar stays highlighted. Tap the chip or the same bar again to clear it. Paging (25 + Load more) runs over the filtered rows. Choosing a breakdown row resets the month. Before this, tapping a month only jumped to it.
 - **Components in a position.** Breaker elements (Eaton VCP-W, `BRKR`) and VFD drives (ABB ACS880, `VFD`) are tracked as their own assets. The unit details window and the panel overview list them: the current one shows as *In service*, and earlier ones as *Removed* with where they are now. A **REPAIRED** tag marks any that have been through a vendor repair. Each has a **Lineage ›** button.
