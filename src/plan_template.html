@@ -466,7 +466,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.8 · synthetic</span>
+      <span class="chip">v10.9 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -499,15 +499,15 @@ body.has-snap .wrap { padding-top: 54px; }
       <div class="titleblock"><span id="tbName">—</span><span>DWG FP-01 · NOT TO SCALE</span></div>
     </div>
     <div class="legend" id="legend"></div>
-    <section class="card" id="fcard" aria-labelledby="fh"><h2 id="fh">Findings in this building</h2><div id="findList"></div></section>
-    <section class="card" aria-labelledby="ph"><h2 id="ph">Portfolio findings · not tied to one position</h2><div id="portList"></div></section>
+    <section class="card" id="fcard" aria-labelledby="fh"><h2 id="fh">Insights in this building</h2><div id="findList"></div></section>
+    <section class="card" aria-labelledby="ph"><h2 id="ph">Portfolio insights · not tied to one position</h2><div id="portList"></div></section>
     <section class="aisum" id="aisum" aria-label="Summary"></section>
   </div>
 
   <div class="scrim" id="scrim"></div>
   <aside class="panel" id="panel" aria-label="Equipment detail">
     <div class="grab"></div>
-    <div class="empty" id="empty">Select a piece of equipment on the drawing, or a finding, to see its details, alarm-to-invoice flow, connections and recent activity.</div>
+    <div class="empty" id="empty">Select a piece of equipment on the drawing, or an insight, to see its details, alarm-to-invoice flow, connections and recent activity.</div>
     <div id="detail" hidden>
       <div class="ph">
         <div class="ph-top">
@@ -680,13 +680,13 @@ const localKey = id => id.slice(6);
 
 /* ---------- metric coloring ---------- */
 const ALLT = {
-  health: { label: 'Findings' },
+  health: { label: 'Insights' },
   alarms: { label: 'Alarms 90d', get: id => P[id].k.alarms90 },
   spend: { label: 'Spend', get: id => P[id].k.spend },
   work: { label: 'Open WOs', get: id => P[id].k.open },
 };
 const MON = {
-  health: { label: 'Findings' },
+  health: { label: 'Insights' },
   alarms: { label: 'Alarms', get: id => P[id].ma[S.month] },
   spend: { label: 'Spend', get: id => P[id].ms[S.month] },
   work: { label: 'CM WOs', get: id => P[id].mc[S.month] },
@@ -773,7 +773,7 @@ function buildingSVG(b, mini) {
     const w = worst(id);
     if (mini) { nh += `<g>${shape}${w >= 2 ? `<circle cx="${n.x + n.w - 2}" cy="${n.y + 2}" r="7" fill="var(${w === 3 ? '--crit' : '--warn'})"/>` : ''}</g>`; return; }
     const mark = w >= 2 ? `<g transform="translate(${n.x + n.w - 3},${n.y + 1})"><circle r="5.5" fill="var(${w === 3 ? '--crit' : '--warn'})" stroke="var(--sheet)" stroke-width="1.2"/><text y="2.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="${w === 3 ? '#fff' : '#0b0b0b'}">${w === 3 ? '!' : '▲'}</text></g>` : '';
-    nh += `<g class="${cls}" data-id="${id}" tabindex="0" role="button" aria-label="${esc(CLS[P[id].cls])} ${lab}${w ? ', has findings' : ''}">
+    nh += `<g class="${cls}" data-id="${id}" tabindex="0" role="button" aria-label="${esc(CLS[P[id].cls])} ${lab}${w ? ', has insights' : ''}">
       <rect x="${n.x - 4}" y="${n.y - 4}" width="${n.w + 8}" height="${n.h + 8}" fill="transparent"/>${shape}
       <text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + 3}" font-size="8" font-family="var(--font-mono)" font-weight="600" text-anchor="middle" fill="${ink}">${lab}</text>${mark}</g>`;
   });
@@ -952,7 +952,7 @@ function renderSummary() {
   const head = `<div class="h">✦ ${esc(sc.label)} summary${gnote}<span>generated on-device · as of ${esc(D.asof)}</span></div>`;
   const issue = tf ? ` Top issue: <button type="button" class="go" data-unit="${tf.id}">${esc(titleOf(tf.id))}</button>, ${esc(tf.title.toLowerCase())} (${esc(tf.detail.replace(/\.$/, ''))}).` : '';
   const money = `<b>${usd(sum(p => p.k.spend))}</b> spend, ${pl(sum(p => p.k.alarms90), 'alarm')} in the last 90 days and ${pl(sum(p => p.k.open), 'open work order')}`;
-  const fnd = `${pl(crit, 'critical finding')} and ${warn} warning`;
+  const fnd = `${pl(crit, 'critical insight')} and ${warn} warning`;
   const mix = () => { const parts = GROUPS.map(([g, l]) => [l, ids.filter(id => GROUP_OF[P[id].cls] === g).length]).filter(x => x[1]); return parts.length > 1 ? ` across ${list(parts.map(([l, n]) => `${l} ${n}`))}` : ''; };
   let body;
   if (!ids.length) body = `No ${esc(gname)} units here.`;
@@ -966,7 +966,7 @@ function renderSummary() {
   } else if (ids.length === 1) {
     const id = ids[0], p = P[id], a = p.asset || {};
     body = `<b>${esc(titleOf(id))}</b> is a ${esc(a.mfr || '')} ${esc(a.model || '')} ${esc((CLS[p.cls] || p.cls).toLowerCase())} (${esc(a.id || '')}) in the ${esc(ZNAME[ZONE_OF[p.cls]] || p.area)} of Building ${esc(id.slice(3, 5))}, ${esc(siteShort(id.slice(0, 2)))}, in service since ${esc(a.since || '—')}.
-      ${money}. ${tf ? `${tf.sev === 'critical' ? 'Critical' : 'Warning'}: ${esc(tf.title.toLowerCase())} (${esc(tf.detail.replace(/\.$/, ''))}).` : 'No open findings.'}`;
+      ${money}. ${tf ? `${tf.sev === 'critical' ? 'Critical' : 'Warning'}: ${esc(tf.title.toLowerCase())} (${esc(tf.detail.replace(/\.$/, ''))}).` : 'No open insights.'}`;
   } else {
     body = `<b>${esc(sc.label)}</b> has <b>${num(ids.length)} tracked ${S.grp ? esc(gname) + ' ' : ''}units</b>${mix()}. ${money}. ${fnd}.${issue}`;
   }
@@ -1024,17 +1024,16 @@ function openBurst(id) {
   const rOf = (v, mx) => base * (1 + grow * Math.sqrt(Math.max(0, v) / mx));
   const poAmt = (fl['wo>po'] || {}).amt || 0, mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
   const sats = [
-    mo == null ? { v: num(k.alarms), c: 'alarms', sub: `${num(k.alarms90)} in 90d`, r: rOf(k.alarms, maxK.alarms), f: 'var(--seq2)', go: 'events', name: 'Alarms → Activity', m: 'alarms' }
+    mo == null ? { v: num(k.alarms), c: 'alarms', sub: `${num(k.alerts)} paged`, r: rOf(k.alarms, maxK.alarms), f: 'var(--seq2)', go: 'events', name: 'Alarms → Activity', m: 'alarms' }
                : { v: num(p.ma[mo]), c: 'alarms', sub: ml, r: rOf(p.ma[mo], MAX_MON.alarms), f: 'var(--seq2)', go: 'events', name: 'Alarms → Activity', m: 'alarms' },
-    { v: num(k.alerts), c: 'alerts', sub: 'paged', r: rOf(k.alerts, maxK.alerts), f: 'var(--seq1)', go: 'events', name: 'Alerts → Activity', m: 'alerts' },
     mo == null ? { v: num(k.wos), c: 'WOs', sub: `${k.open} open`, r: rOf(k.wos, maxK.wos), f: 'var(--seq2)', go: 'flow', name: 'Work orders → Flow', m: 'wos' }
                : { v: num(p.mc[mo]), c: 'CM WOs', sub: ml, r: rOf(p.mc[mo], MAX_MON.work), f: 'var(--seq2)', go: 'flow', name: 'Work orders → Flow', m: 'wos' },
     { v: usd(poAmt), c: 'PO value', sub: `${num((fl['wo>po'] || {}).n || 0)} POs`, r: rOf(poAmt, maxK.po), f: 'var(--seq1)', go: 'flow', name: 'POs → Flow', m: 'po' },
     mo == null ? { v: usd(k.spend), c: 'invoiced', sub: `${usd(k.spend90)} 90d`, r: rOf(k.spend, maxK.spend), f: 'var(--seq2)', go: 'overview', name: 'Spend → Overview', m: 'inv' }
                : { v: usd(p.ms[mo]), c: 'invoiced', sub: ml, r: rOf(p.ms[mo], MAX_MON.spend), f: 'var(--seq2)', go: 'overview', name: 'Spend → Overview', m: 'inv' },
     { v: num(k.labor), c: 'labor hrs', sub: k.pm ? `${Math.round(100 * k.pmlate / k.pm)}% PM late` : '', r: rOf(k.labor, maxK.labor), f: 'var(--seq1)', go: 'events', name: 'Labor → Activity', m: 'labor' },
-    { v: fs.length ? (w === 3 ? '! ' : w === 2 ? '▲ ' : '') + fs.length : '0', c: fs.length ? 'findings' : 'no findings',
-      sub: fs.length ? (Z ? `${new Set(fs.map(f => f.id)).size} units` : fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Findings → Overview', m: 'findings',
+    { v: fs.length ? (w === 3 ? '! ' : w === 2 ? '▲ ' : '') + fs.length : '0', c: fs.length ? 'insights' : 'no insights',
+      sub: fs.length ? (Z ? `${new Set(fs.map(f => f.id)).size} units` : fs[0].title.length > 14 ? fs[0].title.slice(0, 13) + '…' : fs[0].title) : '', go: 'overview', name: 'Insights → Overview', m: 'findings',
       r: base * (fs.length ? 1.45 : 1), f: w === 3 ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : w === 2 ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq0)' },
   ];
   const cnt = { alarms: mo == null ? k.alarms : p.ma[mo], alerts: k.alerts, wos: mo == null ? k.wos : p.mc[mo], po: (fl['wo>po'] || {}).n || 0,
@@ -1155,8 +1154,8 @@ function hoverBurst(b, e) {
 }
 
 /* ---------- drill-down data ---------- */
-const MTITLE = { alarms: 'Alarms', alerts: 'Alerts', wos: 'Work orders', po: 'Purchase orders', inv: 'Invoices', labor: 'Labor', findings: 'Findings' };
-const MSHORT = { alarms: 'alarms', alerts: 'alerts', wos: 'work orders', po: 'POs', inv: 'invoiced', labor: 'labor hrs', findings: 'findings' };
+const MTITLE = { alarms: 'Alarms', alerts: 'Alerts', wos: 'Work orders', po: 'Purchase orders', inv: 'Invoices', labor: 'Labor', findings: 'Insights' };
+const MSHORT = { alarms: 'alarms', alerts: 'alerts', wos: 'work orders', po: 'POs', inv: 'invoiced', labor: 'labor hrs', findings: 'insights' };
 const MTAB = { alarms: 'events', alerts: 'events', labor: 'events', wos: 'flow', po: 'flow', inv: 'overview', findings: 'overview' };
 const sevFill = s => s === 'critical' ? 'color-mix(in srgb, var(--crit) 35%, var(--sheet))' : s === 'major' ? 'color-mix(in srgb, var(--warn) 45%, var(--sheet))' : 'var(--seq1)';
 function drillZone(zid, m) {
@@ -1459,7 +1458,7 @@ function openPeek(b, t) {
     const fs = isZone(id) ? ZONES[id].findings : (findBy[id] || []);
     const list = item ? fs.filter(f => f.title === item) : fs;
     body = list.map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('');
-    sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
+    sub = `${list.length} insight${list.length === 1 ? '' : 's'}`;
   } else {
     const all = recs(m, id), hit = item ? all.filter(r => r[1] === item) : all, rows = hit.length ? hit : all;
     b.__pg = { m, all: rows, rows, hit: null, sel: null, view: null };
@@ -1596,12 +1595,18 @@ function buildLookups() {
 const idNum = s => s == null ? null : +String(s).split('-')[1];
 const poFlags = po => { if (!PO_FLAGS) buildLookups(); return PO_FLAGS[idNum(po)]; };
 const woPri = wo => { if (!WO_PRI) buildLookups(); return WO_PRI[idNum(wo)]; };
+const PAGES = {};
+function pageOf(r) {
+  const pid = r && r.pos; if (!pid) return null;
+  if (!PAGES[pid]) { PAGES[pid] = {}; recs('alerts', pid).forEach(a => { PAGES[pid][a[3]] = { ack: !!a[4], who: a[1] }; }); }
+  return PAGES[pid][r[5]] || null;
+}
 function recRow(m, r, hit) { const h = recRow0(m, r, hit), i = h.indexOf('</span><span class="amt">'); return i < 0 ? h : h.slice(0, i) + astLine(r) + h.slice(i); }
 function recRow0(m, r, hit) {
   const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
   const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
-    case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> <span class="sevtag ${sev === 'critical' ? 'critical' : sev === 'major' ? 'warning' : 'info'}">${sev === 'critical' ? '! ' : sev === 'major' ? '▲ ' : ''}${esc(sev)}</span><div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
+    case 'alarms': { const [ts, k, sev, msg, wo] = r, pg = pageOf(r); return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> <span class="sevtag ${sev === 'critical' ? 'critical' : sev === 'major' ? 'warning' : 'info'}">${sev === 'critical' ? '! ' : sev === 'major' ? '▲ ' : ''}${esc(sev)}</span>${pg ? ` <span class="pri" style="--c:${pg.ack ? '#1C5CAB' : '#C62828'}" title="${esc(pg.who)}">paged${pg.ack ? ' · ack' : ' · no ack'}</span>` : ''}<div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
     case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
     case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(wid)}</b>${priPill(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
     case 'po': { const [ts, k, pid, amt, d, , rush, lead, hc] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(pid)}</b>${poPills(rush, lead, hc)}</span><div>${esc(k)} · ${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
@@ -1626,7 +1631,7 @@ function renderSub() {
   }
   let h = '';
   if (m === 'findings') {
-    h += (findBy[id] || []).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('') || '<div class="note">No findings at this position.</div>';
+    h += (findBy[id] || []).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('') || '<div class="note">No insights at this position.</div>';
   } else {
     h += `<div class="sect">Breakdown · tap a row to filter</div><div class="bars">${items.map(i => `
       <button type="button" class="brow${i.key === item ? ' on' : ''}" data-k="${esc(i.key)}">
@@ -1710,10 +1715,10 @@ function renderKpis() {
 function renderLegend() {
   let h;
   if (S.metric === 'health') {
-    h = `<span><span class="sw" style="background:color-mix(in srgb, var(--crit) 30%, var(--sheet))"></span>! Critical finding</span>
+    h = `<span><span class="sw" style="background:color-mix(in srgb, var(--crit) 30%, var(--sheet))"></span>! Critical insight</span>
          <span><span class="sw" style="background:color-mix(in srgb, var(--warn) 40%, var(--sheet))"></span>▲ Warning</span>
          <span><span class="sw" style="background:color-mix(in srgb, var(--info) 18%, var(--sheet))"></span>Info (asset swap)</span>
-         <span><span class="sw" style="background:var(--seq0)"></span>No findings</span>`;
+         <span><span class="sw" style="background:var(--seq0)"></span>No insights</span>`;
   } else {
     const fmt = S.metric === 'spend' ? usd : num, mx = maxOf(S.metric);
     h = `<span>${METRICS()[S.metric].label}${S.month != null ? ' · ' + mlabel(M[S.month]) : ''}:</span>` + [1, 2, 3, 4, 5].map(s => `<span class="sw" style="background:var(--seq${s});margin-right:0"></span>`).join('') +
@@ -1728,7 +1733,7 @@ function renderFindings() {
   $('findList').innerHTML = fs.length ? fs.map(f => `<button class="find" type="button" data-id="${f.id}">
       <span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span>
       <span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span class="id">${localKey(f.id)}</span></button>`).join('')
-    : '<div class="note">No findings in this building.</div>';
+    : '<div class="note">No insights in this building.</div>';
   $('portList').innerHTML = D.portfolio.map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : '--warn'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span>${sevtag(f.sev)}</div>`).join('');
 }
 $('findList').addEventListener('click', e => { const r = e.target.closest('.find'); if (r) select(r.dataset.id); });
@@ -1878,7 +1883,7 @@ function graph(id, p) {
   s += '</svg>';
   const isPower = POWER.has(p.cls);
   return `<div class="note">${isPower ? 'Power' : 'Cooling'} path through this position, two hops each way. Tap a box to open that equipment. Its full path is also highlighted on the drawing.</div>${s}
-    <div class="legend"><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link power" style="opacity:1"/></svg>Power</span><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link cool" style="opacity:1"/></svg>Cooling</span><span>! critical · ▲ warning finding</span></div>`;
+    <div class="legend"><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link power" style="opacity:1"/></svg>Power</span><span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="link cool" style="opacity:1"/></svg>Cooling</span><span>! critical · ▲ warning insight</span></div>`;
 }
 
 function evOf(pid, n = 14) {
@@ -2211,13 +2216,12 @@ function metricRows(id) {
   const fs = Z ? p.findings : (findBy[id] || []);
   const n = m => mem.reduce((a, x) => a + recs(m, x).length, 0);
   return [
-    ['alarms', 'Alarms', n('alarms'), `${num(k.alarms90)} in last 90 days`],
-    ['alerts', 'Alerts', n('alerts'), 'paged from alarms'],
+    ['alarms', 'Alarms', n('alarms'), `${num(k.alarms90)} in last 90 days · ${num(k.alerts)} paged`],
     ['wos', 'Work orders', n('wos'), `${num(k.open)} open`],
     ['po', 'Purchase orders', n('po'), usd((fl['wo>po'] || {}).amt || 0) + ' committed'],
     ['inv', 'Invoices', n('inv'), usd(k.spend) + ' invoiced'],
     ['labor', 'Labor entries', n('labor'), num(k.labor) + ' hours'],
-    ['findings', 'Findings', fs.length, fs[0] ? fs[0].title : 'none'],
+    ['findings', 'Insights', fs.length, fs[0] ? fs[0].title : 'none'],
   ];
 }
 function renderTable() {
@@ -2228,7 +2232,7 @@ function renderTable() {
     h += `<div class="sect">Record types · tap one to drill in</div><div class="tscroll"><table class="tg"><thead><tr><th>Type</th><th class="r">Records</th><th>Summary</th></tr></thead><tbody>
       ${metricRows(id).map(([m, l, c, s]) => `<tr data-drill="${m}"><td><b>${l}</b></td><td class="r mono">${num(c)}</td><td class="mut">${esc(s)}</td></tr>`).join('')}</tbody></table></div>`;
     const units = Z ? ZONES[id].members : [...(up[id] || []), ...(down[id] || [])];
-    if (units.length) h += `<div class="sect">${Z ? 'Units in this room' : 'Connected units'} · tap to open</div><div class="tscroll"><table class="tg"><thead><tr><th>Unit</th><th class="r">Alarms</th><th class="r">WOs</th><th class="r">Open</th><th class="r">Spend</th><th>Findings</th></tr></thead><tbody>
+    if (units.length) h += `<div class="sect">${Z ? 'Units in this room' : 'Connected units'} · tap to open</div><div class="tscroll"><table class="tg"><thead><tr><th>Unit</th><th class="r">Alarms</th><th class="r">WOs</th><th class="r">Open</th><th class="r">Spend</th><th>Insights</th></tr></thead><tbody>
       ${units.map(u => { const k = P[u].k, w = worst(u); return `<tr data-unit="${u}"><td><b>${titleOf(u)}</b>${Z ? '' : `<span class="mut"> ${(up[id] || []).includes(u) ? '↑ feeds this' : '↓ fed by this'}</span>`}</td><td class="r mono">${num(k.alarms)}</td><td class="r mono">${num(k.wos)}</td><td class="r mono">${k.open}</td><td class="r mono">${usd(k.spend)}</td><td>${w ? sevtag(w === 3 ? 'critical' : w === 2 ? 'warning' : 'info') : ''}</td></tr>`; }).join('')}</tbody></table></div>`;
     $('tblBody').innerHTML = h; return;
   }
@@ -2298,7 +2302,7 @@ function openUnitPeek(b, id) {
   const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${evOf(id, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
   el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
     <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
-    ${fs.length ? `<div class="sect" style="margin-top:8px">Findings</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
+    ${fs.length ? `<div class="sect" style="margin-top:8px">Insights</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
     ${Z ? '' : compsHTML(id)}
     ${recent}
     ${Z ? '' : `<div class="pk-btns"><button type="button" class="pk-open" data-lin="${p.asset.id}">Lineage ›</button><button type="button" class="pk-open" data-open="${id}">Open full details ›</button></div>${SNAP ? `<button type="button" class="pk-open" data-note="${id}">✎ Add field note (works offline)</button>` : ''}`}</div>

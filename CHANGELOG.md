@@ -2,6 +2,18 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.9 — 2026-11-09 · branch `release/v10.9`
+- **Findings are now called Insights** everywhere: the bubble, list titles, color-by option, legends, table column, panel sections and summaries.
+- **More example insights,** each judged against the unit's peers (same asset class), not hard-coded. There are now 91 insights across 74 units (was 33 findings). New types:
+  - **PMs running late** (10): e.g. W1-B2-UPS-03, 6 of 8 PMs late versus 13% for peers.
+  - **Slow alarm response** (2): e.g. W1-B1-NET-01, a median of 13 h from alarm to work order, 2.4x its peers.
+  - **Pages not acknowledged** (1): W1-B1-CDU-01, 4 of 10 pages since May never acknowledged.
+  - **Work order aging** (1): open work orders 21+ days old (a warning at 45+).
+  - **Repair cost rising** (7): average corrective repair cost since May versus before.
+  - **Frequent rush orders** (10) and **Long-lead parts on order** (27).
+  - **Labor-heavy repairs** is in place too, but nothing in the current data crosses the threshold.
+- **One alarm bubble instead of two.** The alerts bubble is folded into alarms ("227 alarms · 120 paged"). In the alarm list, each alarm that paged someone carries a **paged · ack** or a red **paged · no ack** tag, and the table's record types merge the same way.
+
 ## v10.8 — 2026-11-09 · branch `release/v10.8`
 - **Asset groups are now the top-level filters,** in a row of chips under the breadcrumb. Recommended split by owner:
   - **DCEO (facility engineering):** **Electrical** (switchgear, generators, transfer switches, UPS, PDU, breaker elements) · **Mechanical** (chillers, cooling towers, CHW pumps, VFDs) · **Cooling** (CRAH, CDU liquid cooling) · **Fire** (detection, suppression) · **Water** (leak detection, water treatment)
