@@ -2,6 +2,14 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.2 — 2026-11-09 · branch `release/v10.2`
+- **Priority icons in the header of every record row**, in the details and records windows and as a Priority column in the table view. Each level has its own shape and color, so it reads at a glance even without color:
+  - **Work orders, priority 1–5:** ① red octagon *Emergency* · ② orange triangle *Urgent* · ③ amber diamond *High* · ④ blue circle *Routine* · ⑤ gray square *Planned*, shown with the type (CM or PM).
+  - **Purchase orders:** red bolt **Rush** or gray clock **Normal**, then the parts flags: purple hourglass **Long lead** (with weeks), green $ **High cost** ($15K+), or gray **Std** (with days).
+  - **Invoices** show their PO's flags (or a red **No PO** tag), and **labor** rows show their work order's priority.
+- **Data:** work order priority now runs 1–5. Monthly PMs are P4 (Routine), and quarterly and semi-annual PMs are P5 (Planned); corrective work keeps P1–P4. POs gain `rush`, `lead_days` and `high_cost`. Rush follows the work order's urgency (803 of 3,505 POs), 566 are long lead (30+ days) and 255 are high cost. These come from their own random stream, so every other record and finding is unchanged (checked by decoding and comparing all record lists).
+- The timeline readout now says "tap or slide".
+
 ## v10.1 — 2026-11-09 · branch `release/v10.1`
 - **Slide across the month bars to scrub through the records like a carousel.** In the details window and the records window, drag a finger (or the mouse) across the timeline and the list switches to each month as you pass over it. The new month slides in from the direction you're moving, with a light tick on phones. Lifting your finger keeps the last month. A plain tap still filters or clears one month. Empty months are skipped. The details window keeps its height while you scrub, so the bars stay under your finger.
 

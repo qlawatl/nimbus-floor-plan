@@ -281,6 +281,11 @@ body.has-snap .wrap { padding-top: 54px; }
 .pgwrap.from-l { transform: translateX(-28px); opacity: .25; transition: none; }
 @media (prefers-reduced-motion: reduce) { .pgwrap { transition: none; } }
 .tl-chart svg { touch-action: pan-y; cursor: ew-resize; }
+.rh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.pri { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 3px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+  background: color-mix(in srgb, var(--c) 10%, var(--sheet)); color: var(--c); font: 700 11.5px var(--font-ui); line-height: 18px; white-space: nowrap; }
+.pri svg { width: 15px; height: 15px; flex: none; }
+.pricell .pri { margin: 1px 4px 1px 0; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -415,7 +420,7 @@ body.has-snap .wrap { padding-top: 54px; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v10.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v10.2 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -1079,7 +1084,7 @@ function tlChart(rows, sel) {
     if (r[2] === 'critical') e.crit++;
     if (['Open', 'In Progress', 'Waiting Parts'].includes(r[3])) e.open++;
     if (typeof r[3] === 'number') e.amt += r[3]; else if (typeof r[2] === 'number') e.hrs += r[2]; });
-  const tip = i => `${mlabel(M[i])} · ${cnt[i]} record${cnt[i] === 1 ? '' : 's'}${ex[i].crit ? ` · ${ex[i].crit} critical` : ''}${ex[i].open ? ` · ${ex[i].open} open` : ''}${ex[i].amt ? ` · ${usd(ex[i].amt)}` : ''}${ex[i].hrs ? ` · ${Math.round(ex[i].hrs)} h` : ''}${cnt[i] ? ' · tap to jump' : ''}`;
+  const tip = i => `${mlabel(M[i])} · ${cnt[i]} record${cnt[i] === 1 ? '' : 's'}${ex[i].crit ? ` · ${ex[i].crit} critical` : ''}${ex[i].open ? ` · ${ex[i].open} open` : ''}${ex[i].amt ? ` · ${usd(ex[i].amt)}` : ''}${ex[i].hrs ? ` · ${Math.round(ex[i].hrs)} h` : ''}${cnt[i] ? ' · tap or slide' : ''}`;
   const W = 340, H = 58, pl = 4, pr = 4, top = 12, base = 42, bw = (W - pl - pr) / M.length, mx = Math.max(1, ...cnt);
   const peak = cnt.indexOf(mx);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Records per month, ${M[0]} to ${M[M.length - 1]}">`;
@@ -1268,16 +1273,60 @@ function openSub(id, m, item, from) { opened();
   requestAnimationFrame(() => $('subwin').classList.add('open'));
 }
 function closeSub() { $('subwin').classList.remove('open'); $('subwin').hidden = true; $('subscrim').hidden = true; }
+
+/* ---------- priority icons: each level has its own shape and color, so they read at a glance and without color ---------- */
+const PRI = { 1: ['Emergency', '#C62828', 'oct'], 2: ['Urgent', '#E8590C', 'tri'], 3: ['High', '#B7791F', 'dia'], 4: ['Routine', '#2563EB', 'circ'], 5: ['Planned', '#64748B', 'sq'] };
+const PSHAPE = {
+  oct: c => `<polygon points="4.1,.5 9.9,.5 13.5,4.1 13.5,9.9 9.9,13.5 4.1,13.5 .5,9.9 .5,4.1" fill="${c}"/>`,
+  tri: c => `<polygon points="7,.4 13.7,13.2 .3,13.2" fill="${c}"/>`,
+  dia: c => `<polygon points="7,.2 13.8,7 7,13.8 .2,7" fill="#E0A800"/>`,
+  circ: c => `<circle cx="7" cy="7" r="6.6" fill="${c}"/>`,
+  sq: c => `<rect x=".7" y=".7" width="12.6" height="12.6" rx="2.5" fill="${c}"/>`,
+};
+const priSvg = n => { const [, c, sh] = PRI[n]; return `<svg viewBox="0 0 14 14" aria-hidden="true">${PSHAPE[sh](c)}<text x="7" y="${sh === 'tri' ? 11.6 : 10.2}" text-anchor="middle" font-size="${sh === 'tri' ? 7 : 8.5}" font-weight="800" fill="${sh === 'dia' ? '#3A2A00' : '#fff'}" font-family="var(--font-ui)">${n}</text></svg>`; };
+const priNum = k => { const m = /P(\d)/.exec(k || ''); return m ? +m[1] : null; };
+function priPill(k, compact) {   // k like "CM P2"
+  const n = priNum(k); if (!n || !PRI[n]) return k ? `<span class="chip">${esc(k)}</span>` : '';
+  const [name, c] = PRI[n], type = String(k).split(' ')[0];
+  return `<span class="pri" style="--c:${c}" title="Priority ${n} · ${name}${type ? ' · ' + type : ''}">${priSvg(n)}${compact ? 'P' + n : `${esc(type)} · ${name}`}</span>`;
+}
+const PICO = {
+  rush: ['#D32F2F', '<path d="M8.2 .4 1.8 8h4.3l-1 5.6L12.2 5.8H7.9z" fill="#D32F2F"/>'],
+  norm: ['#6B7680', '<circle cx="7" cy="7" r="5.6" fill="none" stroke="#6B7680" stroke-width="1.8"/><path d="M7 3.8V7l2.2 1.4" stroke="#6B7680" stroke-width="1.6" fill="none" stroke-linecap="round"/>'],
+  lead: ['#7B3FC4', '<path d="M2.6 .8h8.8v2.6L8.3 7l3.1 3.6v2.6H2.6v-2.6L5.7 7 2.6 3.4z" fill="#7B3FC4"/><path d="M4.4 11.6h5.2L7 8.8z" fill="#fff"/>'],
+  cost: ['#0B7A5C', '<rect x=".6" y=".6" width="12.8" height="12.8" rx="3" fill="#0B7A5C"/><text x="7" y="10.6" text-anchor="middle" font-size="10" font-weight="800" fill="#fff" font-family="var(--font-ui)">$</text>'],
+  std: ['#6B7680', '<rect x="2" y="2" width="10" height="10" rx="1.5" fill="none" stroke="#6B7680" stroke-width="1.8"/>'],
+};
+const pill = (key, label, title) => `<span class="pri" style="--c:${PICO[key][0]}" title="${esc(title)}"><svg viewBox="0 0 14 14" aria-hidden="true">${PICO[key][1]}</svg>${label}</span>`;
+const wk = d => d >= 14 ? `${Math.round(d / 7)} wk` : `${d} d`;
+function poPills(rush, lead, hc) {   // urgency, then parts: long lead / high cost, or standard
+  if (rush == null) return '';
+  let h = rush ? pill('rush', 'Rush', 'Rush PO: expedited') : pill('norm', 'Normal', 'Normal PO');
+  if (lead >= 30) h += pill('lead', `Long lead · ${wk(lead)}`, `Long lead time: ${lead} days`);
+  if (hc) h += pill('cost', 'High cost', 'High cost: $15K or more');
+  if (lead < 30 && !hc) h += pill('std', `Std · ${wk(lead)}`, `Standard parts: ${lead} days lead`);
+  return h;
+}
+// lookups so invoices show their PO's flags and labor rows show their WO's priority
+let PO_FLAGS = null, WO_PRI = null;
+function buildLookups() {
+  PO_FLAGS = {}; WO_PRI = {};
+  Object.values((D.rec || {}).po || {}).forEach(rows => rows.forEach(r => { PO_FLAGS[r[2]] = [r[6], r[7], r[8]]; }));
+  Object.values((D.rec || {}).wos || {}).forEach(rows => rows.forEach(r => { WO_PRI[r[2]] = D.sd[r[1]]; }));
+}
+const idNum = s => s == null ? null : +String(s).split('-')[1];
+const poFlags = po => { if (!PO_FLAGS) buildLookups(); return PO_FLAGS[idNum(po)]; };
+const woPri = wo => { if (!WO_PRI) buildLookups(); return WO_PRI[idNum(wo)]; };
 function recRow(m, r, hit) {
   const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
   const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
     case 'alarms': { const [ts, k, sev, msg, wo] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b> <span class="sevtag ${sev === 'critical' ? 'critical' : sev === 'major' ? 'warning' : 'info'}">${sev === 'critical' ? '! ' : sev === 'major' ? '▲ ' : ''}${esc(sev)}</span><div>${esc(msg)}</div></span><span class="amt">${wo ? esc(wo) : '<span style="color:var(--crit)">No WO</span>'}</span></li>`; }
     case 'alerts': { const [ts, k, aid, alm, ack] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}<br>${ts.slice(11)}</span><span class="what"><b>${esc(k)}</b><div>${esc(aid)} for ${esc(alm)}</div></span><span class="amt">${ack ? 'ack' : '<span style="color:var(--crit)">no ack</span>'}</span></li>`; }
-    case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(wid)}</b> <span class="chip">${esc(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
-    case 'po': { const [ts, k, pid, amt, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(pid)}</b> · ${esc(k)}<div>${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
-    case 'inv': { const [ts, k, iid, amt, po] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(iid)}</b> · ${esc(k)}<div>against ${esc(po)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
-    case 'labor': { const [ts, k, hrs, d, wid] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><b>${esc(k)}</b> · ${esc(wid)}<div>${esc(d)}</div></span><span class="amt">${hrs} h</span></li>`; }
+    case 'wos': { const [ts, k, wid, st, d] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(wid)}</b>${priPill(k)}</span><div>${esc(d)}</div></span><span class="amt">${esc(st)}</span></li>`; }
+    case 'po': { const [ts, k, pid, amt, d, , rush, lead, hc] = r; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(pid)}</b>${poPills(rush, lead, hc)}</span><div>${esc(k)} · ${esc(d)}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'inv': { const [ts, k, iid, amt, po] = r, f = po ? poFlags(po) : null; return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(iid)}</b>${f ? poPills(...f) : '<span class="pri" style="--c:#C62828" title="Invoice has no PO">No PO</span>'}</span><div>${esc(k)} · against ${esc(po || '—')}</div></span><span class="amt">${usd(amt)}</span></li>`; }
+    case 'labor': { const [ts, k, hrs, d, wid] = r, pk = woPri(wid); return `<li${cls}><span class="when">${ts.slice(0, 10)}</span><span class="what"><span class="rh"><b>${esc(k)}</b> · ${esc(wid)}${pk ? priPill(pk, true) : ''}</span><div>${esc(d)}</div></span><span class="amt">${hrs} h</span></li>`; }
   }
   return '';
 }
@@ -1844,8 +1893,8 @@ const TB = { item: null, q: '', sort: null, dir: -1, shown: 25, mon: null };
 const TCOLS = {
   alarms: [['When', 0], ['Code', 1], ['Severity', 2], ['Message', 3], ['WO', 4]],
   alerts: [['Sent', 0], ['Team · channel', 1], ['Alert', 2], ['Alarm', 3], ['Ack', 4, 'ack']],
-  wos: [['Opened', 0], ['Type', 1], ['WO', 2], ['Status', 3], ['Description', 4], ['Closed', 5]],
-  po: [['Created', 0, 'date'], ['Vendor', 1], ['PO', 2], ['Amount', 3, 'usd'], ['Line', 4]],
+  wos: [['Opened', 0], ['Priority', 1, 'pri'], ['WO', 2], ['Status', 3], ['Description', 4], ['Closed', 5]],
+  po: [['Created', 0, 'date'], ['Priority', 6, 'po'], ['Vendor', 1], ['PO', 2], ['Amount', 3, 'usd'], ['Line', 4]],
   inv: [['Date', 0, 'date'], ['Vendor', 1], ['Invoice', 2], ['Amount', 3, 'usd'], ['PO', 4]],
   labor: [['Date', 0, 'date'], ['Technician', 1], ['Hours', 2, 'num'], ['Note', 3], ['WO', 4]],
 };
@@ -1901,7 +1950,7 @@ function renderTable() {
   h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}${TB.mon ? `<button type="button" class="chip on" data-clearmon>${mlabel(TB.mon)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
     <div class="tscroll"><table class="tg recs"><thead><tr>${cols.map(([l, i, kind]) => `<th data-sort="${i}" class="${kind === 'usd' || kind === 'num' ? 'r' : ''}">${l}${(TB.sort ?? 0) === i ? (TB.sort == null || TB.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>
     ${shown.map(({ pid, r }) => { const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
-      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : ''}">${esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
+      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : kind === 'pri' || kind === 'po' ? 'pricell' : ''}">${kind === 'pri' ? priPill(r[i]) : kind === 'po' ? poPills(r[6], r[7], r[8]) : esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
     ${rows.length > TB.shown ? `<button type="button" class="more" data-tmore>Load ${Math.min(PAGE, rows.length - TB.shown)} more · ${TB.shown} of ${rows.length} shown</button>` : `<div class="endnote">All ${rows.length} shown · tap a row to follow its lifecycle</div>`}`;
   $('tblBody').innerHTML = h;
 }
