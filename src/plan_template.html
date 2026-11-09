@@ -276,6 +276,11 @@ body.has-snap .wrap { padding-top: 54px; }
 .lin.leg.dim { opacity: .12; }
 .stop.dim { opacity: .2; }
 
+.pgwrap { transition: transform .16s ease-out, opacity .16s ease-out; }
+.pgwrap.from-r { transform: translateX(28px); opacity: .25; transition: none; }
+.pgwrap.from-l { transform: translateX(-28px); opacity: .25; transition: none; }
+@media (prefers-reduced-motion: reduce) { .pgwrap { transition: none; } }
+.tl-chart svg { touch-action: pan-y; cursor: ew-resize; }
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -410,7 +415,7 @@ body.has-snap .wrap { padding-top: 54px; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v10 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v10.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -1098,6 +1103,25 @@ function tlHover(e) {
   if (g && chart.contains(g)) { g.classList.add('hov'); read.textContent = g.dataset.tip; read.classList.add('live'); }
   else { read.textContent = read.dataset.default; read.classList.remove('live'); }
 }
+// scrub: slide a finger (or drag the mouse) across the bars and the list follows month by month, like a carousel
+const SCRUB = { on: false, moved: false, until: 0, last: null };
+const scrubState = c => c.id === 'swBody' ? SW.pg : c.__pgOf ? c.__pgOf.__pg : null;
+function scrubAt(e) {
+  const chart = e.target.closest && e.target.closest('.tl-chart'); if (!chart) return;
+  const g = (document.elementFromPoint(e.clientX, e.clientY) || e.target).closest('.tl-m');
+  if (!g || !chart.contains(g) || g.classList.contains('empty') || g.dataset.mon === SCRUB.last) return;
+  const c = chart.closest('.peek, #swBody'), st = c && scrubState(c); if (!st) return;
+  SCRUB.last = g.dataset.mon; SCRUB.moved = true;
+  // hold the window's size while scrubbing so the bars stay under the finger as the list grows and shrinks
+  const box = c.closest('.peek'); if (box && !box.style.height) box.style.height = box.offsetHeight + 'px';
+  monFilter(c, st, g.dataset.mon, { set: true, quiet: true });
+}
+document.addEventListener('pointerdown', e => { if (!(e.target.closest && e.target.closest('.tl-chart'))) return; const g = e.target.closest('.tl-m'); Object.assign(SCRUB, { on: true, moved: false, last: g ? g.dataset.mon : null, x: e.clientX }); }, true);
+document.addEventListener('pointermove', e => { if (!SCRUB.on || (e.pointerType === 'mouse' && !(e.buttons & 1))) return; if (!SCRUB.moved && Math.abs(e.clientX - SCRUB.x) < 6) return; scrubAt(e); }, true);
+const scrubEnd = () => { if (SCRUB.on && SCRUB.moved) SCRUB.until = Date.now() + 450; SCRUB.on = false; };
+document.addEventListener('pointerup', scrubEnd, true); document.addEventListener('pointercancel', scrubEnd, true);
+// a scrub ends where the finger lifts; the tap that would follow must not toggle that month off again
+document.addEventListener('click', e => { if (Date.now() < SCRUB.until && e.target.closest && e.target.closest('.tl-chart')) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
@@ -1124,13 +1148,21 @@ const mlabelY = m => { const [y, mm] = m.split('-'); return ['Jan','Feb','Mar','
 const monRows = st => st.mon ? st.all.filter(r => String(r[0]).startsWith(st.mon)) : st.all;
 const monChip = st => st.mon ? `<div class="monbar"><button type="button" class="chip on" data-clearmon>${mlabelY(st.mon)} ×</button><span class="mut">${st.rows.length} of ${st.all.length} records</span></div>` : '';
 const pgWrap = st => `<div class="pgwrap">${monChip(st)}${pagedList(st.m, st.rows, st.hit)}</div>`;
-function monFilter(container, st, mon) {
-  const next = st.mon === mon ? null : mon;
-  if (next && !st.all.some(r => String(r[0]).startsWith(next))) return toast(`No records in ${mlabelY(next)}`);
+function monFilter(container, st, mon, o = {}) {
+  const prev = st.mon, next = o.set ? mon : st.mon === mon ? null : mon;
+  if (next && !st.all.some(r => String(r[0]).startsWith(next))) return o.quiet ? null : toast(`No records in ${mlabelY(next)}`);
+  if (o.set && next === prev) return;
   st.mon = next; st.rows = monRows(st);
+  if (container.id === 'swBody') { SW.mon = st.mon; SW.rows = st.rows; }
   container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === st.mon));
-  const w = container.querySelector('.pgwrap'); if (w) w.outerHTML = pgWrap(st);
+  const w = container.querySelector('.pgwrap');
+  if (w) {   // carousel: the new month slides in from the side you're moving toward
+    w.outerHTML = pgWrap(st);
+    const nw = container.querySelector('.pgwrap'), dir = prev && next ? (next > prev ? 'from-r' : 'from-l') : '';
+    if (dir && nw) { nw.classList.add(dir); requestAnimationFrame(() => requestAnimationFrame(() => nw.classList.remove(dir))); }
+  }
   const cnt = container.querySelector('.reccnt'); if (cnt) cnt.textContent = st.rows.length;
+  if (o.quiet) { if (navigator.vibrate) try { navigator.vibrate(4); } catch (e) {} return; }
   const chart = container.querySelector('.tl-chart'), sc = chart && chart.closest('.pk-b, .pb');
   if (sc && chart) sc.scrollTo({ top: Math.max(0, chart.offsetTop - sc.offsetTop - 4), behavior: 'smooth' });
   toast(st.mon ? `${mlabelY(st.mon)} · ${st.rows.length} record${st.rows.length === 1 ? '' : 's'}` : `All months · ${st.rows.length} records`);
@@ -1151,7 +1183,7 @@ function openPeek(b, t) {
     sub = `${rows.length} record${rows.length === 1 ? '' : 's'} · ${titleOf(id)} · newest first`;
   }
   const el = document.createElement('div');
-  el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
+  el.className = 'peek'; el.__pgOf = b; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
   el.addEventListener('click', e => { const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); if (e.target.closest('[data-clearmon]')) return monFilter(el, pg, pg.mon); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
