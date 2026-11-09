@@ -63,7 +63,7 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
   const rows = [
     ['Problem', 'A data center unit\'s history is shattered across six or more systems. The technician standing at it sees one slice, and only with a signal.'],
     ['Product', 'Lumo unifies operations, purchasing, finance and workforce records at the physical unit, logs every change, and ships a whole site as an encrypted offline file.'],
-    ['Proof', 'Working product (v10) on a synthetic two-site operator: 215K rows in one 0.9 MB file, 23x smaller than the source, with every drill-down under 8 ms.'],
+    ['Proof', 'Working product (v10) on a synthetic two-site operator: 49K records packed into 0.49 MB (24x smaller than raw JSON), the whole product in 0.9 MB, every drill-down under 8 ms.'],
     ['Buyers', 'Hyperscale operators who own the sites, and integrated facility management (IFM) providers such as ABM who run them.'],
     ['Ask', '$200K SkyDeck Cohort investment to plug into live CMMS, BMS and ERP systems and land the first paid pilots.'],
   ];
@@ -269,17 +269,25 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
 
 /* 9 Pillar: compression */
 {
-  const s = base(); title(s, 'An entire fleet\'s history in 0.9 MB, 23x smaller than its source data');
-  const data = [['Source tables as CSV', 21.3, '21.3 MB', 'B8C2C9'], ['Analytics database (DuckDB)', 8.1, '8.1 MB', 'B8C2C9'], ['Full app + data, both sites', 0.92, '0.9 MB', ACC], ['One site, encrypted', 0.55, '0.55 MB', ACC]];
-  const x0 = 3.25, maxW = 5.0;
-  data.forEach(([k, v, lab, c], i) => {
-    const y = 1.55 + i * 0.72, w = Math.max(0.06, maxW * v / 21.3);
-    txt(s, k, { x: M, y: y + 0.12, w: 2.65, h: 0.35, fontSize: 13, bold: i >= 2, color: INK });
-    box(s, x0, y, w, 0.5, c, null, 0.04);
-    txt(s, lab, { x: x0 + w + 0.12, y: y + 0.12, w: 1.3, h: 0.35, fontSize: 13, bold: true, color: i >= 2 ? ACC : TXT });
+  const s = base(); title(s, 'Lumo packs 49,000 records into 0.49 MB: under 10 bytes a record, 24x smaller than raw JSON');
+  const st = [['Plain JSON', 11.76, '11.8 MB', 'C9D0D5', ''], ['CSV export', 6.34, '6.3 MB', 'B8C2C9', '1.9x'], ['Lumo encoding', 1.54, '1.5 MB', '8FC9C1', '7.6x'], ['+ gzip', 0.49, '0.49 MB', ACC, '24x']];
+  const x0 = 1.9, maxW = 2.55;
+  st.forEach(([k, v, lab, c, x], i) => {
+    const y = 1.5 + i * 0.66, w = Math.max(0.06, maxW * v / 11.76);
+    txt(s, k, { x: M, y: y + 0.1, w: 1.5, h: 0.32, fontSize: 12.5, bold: i >= 2, color: INK });
+    box(s, x0, y, w, 0.46, c, null, 0.04);
+    txt(s, [{ text: lab, options: { bold: true, color: i === 3 ? ACC : TXT } }, { text: x ? '  ' + x : '', options: { color: MUT } }], { x: x0 + w + 0.1, y: y + 0.1, w: 1.5, h: 0.3, fontSize: 12 });
   });
-  txt(s, 'App, floor plans and every record travel together. Nothing to install, no server, opens in half a second.', { x: M, y: 4.5, w: 8.6, h: 0.4, fontSize: 13, color: TXT });
-  note(s, 'Synthetic dataset: 2 sites, 4 buildings, 172 positions, Jan 2025–Oct 2026; 20 modeled tables, 215K rows (49K source records plus events, graph edges and daily rollups). Ratio = 21.3 MB ÷ 0.92 MB.');
+  txt(s, 'How the encoding works', { x: 5.95, y: 1.45, w: 3.5, h: 0.3, fontSize: 13, bold: true, color: INK });
+  const tech = [['Keyed by position', 'the unit ID is stored once, not on every row'], ['String dictionary', 'vendors, codes and statuses become small integers'], ['Delta timestamps', 'each row stores minutes since the previous one'], ['Integer IDs', 'WO-3006232 ships as 3006232'], ['gzip level 9', 'then base64, inside the one HTML file']];
+  tech.forEach(([a, b], i) => {
+    const y = 1.85 + i * 0.5;
+    dot(s, 5.95, y, 0.3, String(i + 1), ACC, 'FFFFFF', 10);
+    txt(s, [{ text: a + ': ', options: { bold: true, color: INK } }, { text: b }], { x: 6.35, y: y - 0.02, w: 3.2, h: 0.48, fontSize: 11 });
+  });
+  box(s, M, 4.35, 9.0, 0.6, ACC_T, null, 0.08);
+  txt(s, [{ text: 'Whole product, both sites: 0.9 MB. ', options: { bold: true, color: INK } }, { text: 'App, floor plans, records and lineage in one file, 23x smaller than the 21.3 MB of modeled tables behind it, and 2.3x smaller than gzipping the CSV alone.' }], { x: M + 0.18, y: 4.42, w: 8.65, h: 0.5, fontSize: 11.5 });
+  note(s, 'Measured Nov 9 2026 on the synthetic dataset: 49,279 source records (alarms, alerts, WOs, labor, POs, invoices). Encoded payload 1.54 MB, gzip 0.49 MB; CSV gzip 1.10 MB.');
 }
 
 /* 10 Pillar: security */
