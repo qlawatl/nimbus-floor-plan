@@ -2,6 +2,15 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.10 — 2026-11-09 · branch `release/v10.10`
+- **Top boxes now read WOs · POs · Alarms · Insights,** in that order. Each follows the drill (all sites, site, building, zone, unit) and the owner filter.
+  - **WOs:** total work orders, with the open count beneath.
+  - **POs:** total purchase orders, with total spend beneath.
+  - **Alarms:** total alarms, with the last-90-day count beneath.
+  - **Insights:** count in scope, shown red when any are critical, with the critical count beneath.
+- With a month selected, WOs, POs and Alarms show that month's counts.
+- Box labels are no longer all caps, so "WOs" and "POs" read correctly.
+
 ## v10.9 — 2026-11-09 · branch `release/v10.9`
 - **Findings are now called Insights** everywhere: the bubble, list titles, color-by option, legends, table column, panel sections and summaries.
 - **More example insights,** each judged against the unit's peers (same asset class), not hard-coded. There are now 91 insights across 74 units (was 33 findings). New types:
