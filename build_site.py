@@ -18,7 +18,7 @@ site, passphrase = sys.argv[1], sys.argv[2]
 out = sys.argv[3] if len(sys.argv) > 3 else p(f"nimbus_{site}_offline.html")
 ITER = int(os.environ.get("NIMBUS_KDF_ITER", 310_000))
 
-d = json.load(open(p("data", "plan_data.json")))
+d = json.load(open(p("data", "plan_data.json"), encoding="utf-8"))
 mine = lambda pid: pid.startswith(site + "-")
 others = {pid[:2] for pid in d["positions"]} - {site}
 d["positions"] = {k: v for k, v in d["positions"].items() if mine(k)}
@@ -45,7 +45,7 @@ ct = AESGCM(key).encrypt(iv, gzip.compress(json.dumps(d, separators=(",", ":")).
 b = lambda x: base64.b64encode(x).decode()
 attrs = (f' data-enc="aes-256-gcm" data-salt="{b(salt)}" data-iv="{b(iv)}" data-iter="{ITER}" data-aad="{b(aad)}"'
          + "".join(f' data-{k.lower() if k != "siteName" else "site-name"}="{v}"' for k, v in manifest.items()))
-html = open(p("src", "plan_template.html")).read().replace("/*__DATAZ_ATTRS__*/", attrs).replace("/*__DATAZ__*/", b(ct))
+html = open(p("src", "plan_template.html"), encoding="utf-8").read().replace("/*__DATAZ_ATTRS__*/", attrs).replace("/*__DATAZ__*/", b(ct))
 html = html.replace("<title>Nimbus Site Floor Plan</title>", f"<title>Nimbus {site} Offline</title>")
-open(out, "w").write(html)
+open(out, "w", encoding="utf-8").write(html)
 print(f"{out}: {len(html) // 1024} KB · {len(d['positions'])} positions · {len(d['lineage'])} assets · encrypted")
