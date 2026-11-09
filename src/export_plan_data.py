@@ -313,6 +313,12 @@ for r in pos.itertuples():
         codes=[dict(code=x.code, n=int(x.n)) for x in codes[codes.id == pid].itertuples()],
     )
 
+# components (breakers, VFDs) currently in each position
+COMP_CLASSES = {"BRKR", "VFD"}
+for aid, a in LIN.items():
+    if a["cls"] in COMP_CLASSES and a["mv"]:
+        loc = SD[a["mv"][-1][3]]
+        if loc in P: P[loc].setdefault("comp", []).append(aid)
 data = dict(months=MONTHS, positions=P, feeds=feeds.values.tolist(), names=dict(zip(names.id, names.name)),
             findings=findings, portfolio=portfolio, bd=BD, rec=REC, sd=SD, lineage=LIN, stores=STORES,
             asof="2026-10-31")

@@ -248,6 +248,34 @@ body.has-snap .wrap { padding-top: 54px; }
 .noteform { padding: 16px; display: grid; gap: 8px; } .noteform h3 { margin: 0; }
 .nf-btns { display: flex; gap: 8px; justify-content: flex-end; } .nf-btns .pk-open { width: auto; margin: 0; padding: 9px 16px; }
 .pk-open:disabled { opacity: .5; }
+.monbar { display: flex; align-items: center; gap: 8px; padding: 6px 0 2px; }
+.monbar .mut { color: var(--ink-3); font-size: 12px; }
+.comp-sect { margin-top: 10px; }
+.brow.comp { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; border-color: var(--hair); }
+.brow.comp .bv { color: var(--accent); font: 600 13px var(--font-ui); white-space: nowrap; }
+.brow.comp.former { opacity: .8; }
+.rbadge { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 4px; font: 700 9.5px var(--font-mono); color: var(--warn); border: 1px solid var(--warn); vertical-align: 1px; }
+.linctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 6px; }
+.linctl .seg2 { display: inline-flex; border: 1px solid var(--line-soft); border-radius: 16px; overflow: hidden; }
+.linctl .seg2 button { border: 0; background: var(--sheet); color: var(--ink-2); padding: 7px 11px; font: 600 12.5px var(--font-ui); cursor: pointer; }
+.linctl .seg2 button.on { background: var(--accent); color: #fff; }
+.linctl .seg2 button:disabled { opacity: .4; cursor: default; }
+.linctl .replay { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sheet)); color: var(--accent); border-radius: 16px; padding: 7px 12px; font: 600 12.5px var(--font-ui); cursor: pointer; }
+.lin-list li.out { opacity: .28; }
+.jr-road { fill: none; stroke: var(--line-soft); stroke-linecap: round; }
+.jr-node rect { fill: var(--sheet); stroke: var(--line); stroke-width: 1.2; }
+.jr-node.vendor rect { stroke: var(--ink-3); } .jr-node.depot rect { stroke: var(--warn); } .jr-node.wh rect { stroke: var(--seq3); }
+.jr-node.used rect { stroke-width: 2.2; }
+.jr-t { font: 700 7px var(--font-ui); fill: var(--ink); }
+.jr-s { font: 600 5.6px var(--font-mono); fill: var(--ink-3); letter-spacing: .04em; }
+.jr-mock { font: 600 5.4px var(--font-mono); fill: var(--warn); }
+.jr-lab { font: 600 6.5px var(--font-mono); fill: var(--ink-3); letter-spacing: .08em; }
+.jr-pos { fill: color-mix(in srgb, var(--accent) 18%, var(--sheet)); stroke: var(--accent); stroke-width: 1.2; }
+.jr-pos.dim { fill: var(--seq0); stroke: var(--line-soft); }
+.jr-dot { fill: var(--accent); stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.lin.leg.dim { opacity: .12; }
+.stop.dim { opacity: .2; }
+
 .pk-open { margin-top: 10px; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 8px; padding: 9px; font: 600 14px var(--font-ui); cursor: pointer; }
 .peek .pk-h { padding: 12px 14px 8px; border-bottom: 1px solid var(--hair); display: grid; gap: 2px; }
 .peek .pk-h b { font-size: 15px; } .peek .pk-h span { font-size: 12px; color: var(--ink-3); }
@@ -382,7 +410,7 @@ body.has-snap .wrap { padding-top: 54px; }
   <header>
     <div>
       <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v9.1 · synthetic data · zoom out to the site map · Lineage shows where an asset has been · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+      <div class="sub">v10 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
     </div>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
@@ -537,10 +565,10 @@ try { D = await loadData(); }
 catch (err) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:16px;font:15px system-ui">This browser can\'t unpack the data. Update to iOS 16.4+ / a current browser.</p>'); return; }
 const P = D.positions, M = D.months;
 const BLD = [...new Set(Object.keys(P).map(id => id.slice(0, 5)))].sort();
-const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection' };
+const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection', BRKR: 'Breaker element', VFD: 'VFD drive' };
 const POWER = new Set(['GEN', 'ATS', 'SWGR', 'UPS', 'PDU']);
 const SEVR = { critical: 3, warning: 2, info: 1 };
-const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'building', lin: null };
+const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'building', lin: null, linView: 'region', linMode: 'vendor' };
 try { const h = location.hash.slice(1); if (BLD.includes(h)) S.b = h; } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -726,9 +754,12 @@ function drawPlan() {
   const svg = $('plan');
   if (S.view === 'site') {
     const site = S.b.slice(0, 2);
-    svg.innerHTML = `<g class="view">${siteSVG(site)}${S.lin ? lineageSVG(S.lin, site) : ''}</g>`;
-    $('tbName').textContent = `${D.names[site] || site} · site map`;
+    const jr = S.lin && S.linView === 'region';
+    svg.setAttribute('viewBox', jr ? '0 0 360 456' : '0 0 360 620');
+    svg.innerHTML = `<g class="view">${jr ? journeySVG(S.lin, site) : siteSVG(site) + (S.lin ? lineageSVG(S.lin, site) : '')}</g>`;
+    $('tbName').textContent = `${D.names[site] || site} · ${jr ? 'journey map' : 'site map'}`;
   } else {
+    svg.setAttribute('viewBox', '0 0 360 620');
     svg.innerHTML = `<g class="view">${buildingSVG(S.b)}</g>`;
     $('tbName').textContent = D.names[S.b] || S.b;
   }
@@ -1071,30 +1102,39 @@ document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const c = e.target.closest && e.target.closest('.tl-chart'); if (c && !c.contains(e.relatedTarget)) tlHover({ type: 'pointerleave', target: e.target }); }, true);
-const TAPSEL = '[data-note], [data-fwd], [data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], tr[data-ent], li[data-step], .lcrow, .brow';
+const TAPSEL = '[data-note], [data-fwd], [data-more], [data-tmore], [data-mon], [data-lin], [data-open], [data-clear], [data-clearmon], [data-open-unit], [data-drill], [data-unit], [data-item], [data-sort], [data-tb], [data-linview], [data-linmode], [data-replay], tr[data-ent], li[data-step], .lcrow, .brow';
 const TAPX = { el: null, x: 0, y: 0, until: 0, fired: null };
-document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .tblwin, .panel, .outwin') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
+document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest(TAPSEL); TAPX.el = el && el.closest('.peek, .subwin, .linwin, .tblwin, .panel, .outwin') ? el : null; TAPX.x = e.clientX; TAPX.y = e.clientY; }, true);
 document.addEventListener('pointerup', e => {
   const el = TAPX.el; TAPX.el = null;
   if (!el || Math.hypot(e.clientX - TAPX.x, e.clientY - TAPX.y) > 10 || !(e.target.closest && e.target.closest(TAPSEL) === el)) return;
   if (e.pointerType === 'mouse') return;               // mice click normally
-  TAPX.fired = el; TAPX.until = Date.now() + 700;
+  TAPX.fired = el; TAPX.until = Date.now() + 700; TAPX.ux = e.clientX; TAPX.uy = e.clientY;
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 }, true);
 document.addEventListener('click', e => {
   if (!e.isTrusted || !TAPX.fired || Date.now() > TAPX.until) return;
+  // the native click that follows our synthetic one is dropped even if the DOM changed under the finger
+  // (Load more swaps the button and scrolls, so that click would otherwise land on a record row)
   const el = e.target.closest && e.target.closest(TAPSEL);
-  if (el === TAPX.fired) { e.stopImmediatePropagation(); e.preventDefault(); TAPX.fired = null; }
+  if (el === TAPX.fired || Math.hypot(e.clientX - TAPX.ux, e.clientY - TAPX.uy) < 14) { e.stopImmediatePropagation(); e.preventDefault(); TAPX.fired = null; }
 }, true);
-function jumpMonth(container, m, rows, hitKey, mon) {
-  const i = rows.findIndex(r => String(r[0]).startsWith(mon));
-  if (i < 0) return toast(`No records in ${mlabel(mon)}`);
-  const ul = container.querySelector('ul.paged');
-  while (ul && ul.children.length <= i && container.querySelector('[data-more]')) loadMore(container, m, rows, hitKey);
-  container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === mon));
-  const li = ul && ul.children[i]; if (!li) return;
-  container.querySelectorAll('li.flash').forEach(x => x.classList.remove('flash'));
-  li.classList.add('flash'); li.scrollIntoView({ block: 'center', behavior: 'smooth' });
+// month filter: tap a bar to show only that month's rows (tap it again, or the chip, to clear); paging runs over the filtered rows
+const mlabelY = m => { const [y, mm] = m.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mm - 1] + ' ' + y; };
+const monRows = st => st.mon ? st.all.filter(r => String(r[0]).startsWith(st.mon)) : st.all;
+const monChip = st => st.mon ? `<div class="monbar"><button type="button" class="chip on" data-clearmon>${mlabelY(st.mon)} ×</button><span class="mut">${st.rows.length} of ${st.all.length} records</span></div>` : '';
+const pgWrap = st => `<div class="pgwrap">${monChip(st)}${pagedList(st.m, st.rows, st.hit)}</div>`;
+function monFilter(container, st, mon) {
+  const next = st.mon === mon ? null : mon;
+  if (next && !st.all.some(r => String(r[0]).startsWith(next))) return toast(`No records in ${mlabelY(next)}`);
+  st.mon = next; st.rows = monRows(st);
+  container.querySelectorAll('.tl-m').forEach(g => g.classList.toggle('on', g.dataset.mon === st.mon));
+  const w = container.querySelector('.pgwrap'); if (w) w.outerHTML = pgWrap(st);
+  const cnt = container.querySelector('.reccnt'); if (cnt) cnt.textContent = st.rows.length;
+  const chart = container.querySelector('.tl-chart'), sc = chart && chart.closest('.pk-b, .pb');
+  if (sc && chart) sc.scrollTo({ top: Math.max(0, chart.offsetTop - sc.offsetTop - 4), behavior: 'smooth' });
+  toast(st.mon ? `${mlabelY(st.mon)} · ${st.rows.length} record${st.rows.length === 1 ? '' : 's'}` : `All months · ${st.rows.length} records`);
+  if (navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
 }
 function openPeek(b, t) {
   const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
@@ -1106,13 +1146,13 @@ function openPeek(b, t) {
     sub = `${list.length} finding${list.length === 1 ? '' : 's'}`;
   } else {
     const all = recs(m, id), hit = item ? all.filter(r => r[1] === item) : all, rows = hit.length ? hit : all;
-    body = tlChart(rows) + pagedList(m, rows, null);
+    b.__pg = { m, all: rows, rows, hit: null, mon: null };
+    body = tlChart(rows) + pgWrap(b.__pg);
     sub = `${rows.length} record${rows.length === 1 ? '' : 's'} · ${titleOf(id)} · newest first`;
-    b.__pg = { m, rows };
   }
   const el = document.createElement('div');
   el.className = 'peek'; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
-  el.addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && b.__pg) return jumpMonth(el, b.__pg.m, b.__pg.rows, null, mo.dataset.mon); if (e.target.closest('[data-more]') && b.__pg) loadMore(el, b.__pg.m, b.__pg.rows, null); });
+  el.addEventListener('click', e => { const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); if (e.target.closest('[data-clearmon]')) return monFilter(el, pg, pg.mon); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
   el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
     <div class="pk-f">Lift your finger to keep this open</div>`;
@@ -1187,9 +1227,9 @@ function pinBurst(b) {
 }
 
 /* ---------- sub-data window ---------- */
-const SW = { id: null, m: null, item: null };
+const SW = { id: null, m: null, item: null, mon: null, pg: null };
 function openSub(id, m, item, from) { opened();
-  Object.assign(SW, { id, m, item, from: from || null });
+  Object.assign(SW, { id, m, item, from: from || null, mon: null });
   $('swBack').hidden = !SW.from;
   renderSub();
   $('subwin').hidden = false; $('subscrim').hidden = false;
@@ -1234,13 +1274,14 @@ function renderSub() {
         <span class="bv mono">${esc(i.vs)}</span></button>`).join('') || '<div class="note">Nothing recorded.</div>'}</div>`;
     const all = recs(m, id), hitRows = item ? all.filter(r => r[1] === item) : all;
     const showRows = hitRows.length ? hitRows : all;
-    SW.rows = showRows;
-    h += `<div class="sect" style="margin-top:6px">Records${item ? ` · ${esc(item)}` : ''} · ${showRows.length} · newest first</div>`;
-    h += tlChart(showRows) + pagedList(m, showRows, item);
+    const pg = SW.pg = { m, all: showRows, rows: showRows, hit: item, mon: SW.mon && showRows.some(r => String(r[0]).startsWith(SW.mon)) ? SW.mon : null };
+    pg.rows = monRows(pg); SW.mon = pg.mon; SW.rows = pg.rows;
+    h += `<div class="sect" style="margin-top:6px">Records${item ? ` · ${esc(item)}` : ''} · <span class="reccnt">${pg.rows.length}</span> · newest first</div>`;
+    h += tlChart(showRows, pg.mon) + pgWrap(pg);
   }
   $('swBody').innerHTML = h;
 }
-$('swBody').addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && SW.rows) return jumpMonth($('swBody'), SW.m, SW.rows, SW.item, mo.dataset.mon); const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; renderSub(); } });
+$('swBody').addEventListener('click', e => { const mo = e.target.closest('[data-mon]'); if (mo && SW.pg) { monFilter($('swBody'), SW.pg, mo.dataset.mon); SW.mon = SW.pg.mon; SW.rows = SW.pg.rows; return; } if (e.target.closest('[data-clearmon]') && SW.pg) { monFilter($('swBody'), SW.pg, SW.pg.mon); SW.mon = null; SW.rows = SW.pg.rows; return; } const ln = e.target.closest('[data-lin]'); if (ln) { closeSub(); return openLineage(ln.dataset.lin); } if (e.target.closest('[data-more]')) return loadMore($('swBody'), SW.m, SW.pg ? SW.pg.rows : SW.rows, SW.item); const l = e.target.closest('li[data-ent]'); if (l) return openLC(SW.id, l.dataset.ent); const g = e.target.closest('[data-go]'); if (g) { const m = SW.m; closeSub(); S.tab = MTAB[m]; select(g.dataset.go); return; } const r = e.target.closest('.brow'); if (r) { SW.item = SW.item === r.dataset.k ? null : r.dataset.k; SW.mon = null; renderSub(); } });
 $('subscrim').onclick = closeSub;
 $('swPanel').onclick = () => { const { id, m } = SW; closeSub(); S.tab = MTAB[m]; select(id); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('subwin').hidden) closeSub(); });
@@ -1363,6 +1404,7 @@ function overview(id, p) {
   h += `<div class="chart"><div class="sect">Alarms per month</div><div class="readout" id="ro-a"></div>${spark(p.ma, 'bar', 'ro-a', v => `${v} alarms`)}</div>`;
   h += `<div class="chart"><div class="sect">Invoiced spend per month</div><div class="readout" id="ro-s"></div>${spark(p.ms, 'area', 'ro-s', v => usd(v))}</div>`;
   h += `<button type="button" class="pk-open" data-lin="${p.asset.id}">Show lineage: where this unit has been ›</button>`;
+  h += compsHTML(id);
   if (SNAP) h += `<button type="button" class="pk-open" data-note="${id}">✎ Add field note (works offline)</button>`;
   h += `<div><div class="sect">Equipment in this position</div><dl class="kv"><dt>Asset tag</dt><dd>${esc(p.asset.tag)}</dd><dt>Make / model</dt><dd>${esc(p.asset.mfr)} ${esc(p.asset.model)}</dd><dt>Serial</dt><dd>${esc(p.asset.serial)}</dd><dt>Installed</dt><dd>${esc(p.asset.since)}</dd></dl></div>`;
   if (p.hist.length > 1) h += `<div><div class="sect">Install history</div><div class="hist">${p.hist.map(x => `<div><i class="${x.to ? '' : 'cur'}"></i><span><span class="mono">${esc(x.tag)}</span> · ${esc(x.mfr)} ${esc(x.model)}<br><span class="note">${x.frm} → ${x.to || 'present'}</span></span></div>`).join('')}</div></div>`;
@@ -1878,6 +1920,7 @@ function openUnitPeek(b, id) {
   el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
     <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     ${fs.length ? `<div class="sect" style="margin-top:8px">Findings</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
+    ${Z ? '' : compsHTML(id)}
     ${recent}
     ${Z ? '' : `<div class="pk-btns"><button type="button" class="pk-open" data-lin="${p.asset.id}">Lineage ›</button><button type="button" class="pk-open" data-open="${id}">Open full details ›</button></div>${SNAP ? `<button type="button" class="pk-open" data-note="${id}">✎ Add field note (works offline)</button>` : ''}`}</div>
     <div class="pk-f"></div>`;
@@ -1885,6 +1928,28 @@ function openUnitPeek(b, id) {
   requestAnimationFrame(() => el.classList.add('on'));
   b.peekEl = el; b.g.__b = b;
   el.addEventListener('click', e => { const ln = e.target.closest('[data-lin]'); if (ln) return openLineage(ln.dataset.lin); const o = e.target.closest('[data-open]'); if (o) { const g = CUR.g; NAV = []; CUR = null; closeBurst(g); S.tab = 'overview'; select(o.dataset.open); } });
+}
+
+/* ---------- components (breaker elements, VFD drives) tracked inside a position ---------- */
+function compsOf(pid) {
+  const cur = (P[pid] && P[pid].comp) || [], out = cur.filter(a => D.lineage[a]).map(aid => ({ aid, cur: true }));
+  Object.entries(D.lineage).forEach(([aid, a]) => {
+    if (cur.includes(aid) || !['BRKR', 'VFD'].includes(a.cls)) return;
+    if (a.mv.some(mv => D.sd[mv[3]] === pid)) out.push({ aid, cur: false });
+  });
+  return out.map(x => {
+    const st = linSteps(x.aid), ins = [...st].reverse().find(s => s.to === pid), off = x.cur ? null : st.find(s => s.from === pid && s.t >= (ins ? ins.t : 0));
+    return { ...x, a: D.lineage[x.aid], ins, off, now: st[st.length - 1].to, rep: st.some(s => s.ev === 'sent_for_repair') };
+  });
+}
+function compsHTML(pid) {
+  const cs = compsOf(pid); if (!cs.length) return '';
+  const d = t => new Date(t).toISOString().slice(0, 10);
+  return `<div class="comp-sect"><div class="sect">Components in this position</div><div class="bars">${cs.map(c => `
+    <button type="button" class="brow comp${c.cur ? '' : ' former'}" data-lin="${c.aid}">
+      <span class="bl">${esc(c.a.tag)}${c.rep ? '<span class="rbadge">REPAIRED</span>' : ''}<small>${esc(CLS[c.a.cls] || c.a.cls)} · ${esc(c.a.mfr)} ${esc(c.a.model)}</small></span>
+      <span class="bl" style="font-weight:400">${c.cur ? 'In service' : 'Removed'}<small>${c.cur ? (c.ins ? 'since ' + d(c.ins.t) : '') : (c.off ? d(c.off.t) + ' · now ' + esc(locName(c.now)) : esc(locName(c.now)))}</small></span>
+      <span class="bv">Lineage ›</span></button>`).join('')}</div></div>`;
 }
 
 /* ---------- asset lineage ---------- */
@@ -1896,24 +1961,130 @@ function linSteps(aid) {
 }
 const locAt = (steps, t) => { let loc = null; steps.forEach(s => { if (s.t <= t) loc = s.to; }); return loc; };
 function lineageSVG(aid, site) {
-  const st = linSteps(aid);
+  const st = linSteps(aid), [r0, r1] = linRange(st, S.linMode);
   let h = '', prev = null;
   st.forEach((s, k) => {
     const p = locPt(s.to, site); if (!p) return;
     const recent = s.t >= SIX_MO;
     if (prev) {
       const [x1, y1] = prev, [x2, y2] = p, mx = (x1 + x2) / 2 + (y2 - y1) * .15, my = (y1 + y2) / 2 - (x2 - x1) * .15;
-      h += `<path class="lin ${recent ? 'recent' : 'old'}" d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" marker-end="url(#arr${recent ? 'R' : 'O'})"/>`;
+      h += `<path class="lin leg ${recent ? 'recent' : 'old'}${k > r0 && k <= r1 ? '' : ' dim'}" data-leg="${k}" d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" marker-end="url(#arr${recent ? 'R' : 'O'})"/>`;
     }
     prev = p;
   });
   const sixLoc = locAt(st, SIX_MO), cur = st[st.length - 1];
   const sp = locPt(sixLoc, site), cp = locPt(cur.to, site);
-  st.forEach((s, k) => { const p = locPt(s.to, site); if (p) h += `<g class="stop${s.t >= SIX_MO ? ' recent' : ''}" data-step="${k}"><circle cx="${p[0]}" cy="${p[1]}" r="7"/><text x="${p[0]}" y="${p[1] + 2.6}" text-anchor="middle">${k + 1}</text></g>`; });
+  st.forEach((s, k) => { const p = locPt(s.to, site); if (p) h += `<g class="stop${s.t >= SIX_MO ? ' recent' : ''}${k >= r0 && k <= r1 ? '' : ' dim'}" data-step="${k}"><circle cx="${p[0]}" cy="${p[1]}" r="7"/><text x="${p[0]}" y="${p[1] + 2.6}" text-anchor="middle">${k + 1}</text></g>`; });
   if (sp) h += `<g class="sixmo"><circle cx="${sp[0]}" cy="${sp[1]}" r="12"/><text x="${sp[0] + 14}" y="${sp[1] - 8}">6 MO AGO</text></g>`;
   if (cp) h += `<g class="now"><circle cx="${cp[0]}" cy="${cp[1]}" r="11"/><text x="${cp[0] + 14}" y="${cp[1] + 14}">NOW</text></g>`;
   return `<defs><marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker>
     <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--ink-3)"/></marker></defs><g class="linlayer">${h}</g>`;
+}
+
+/* ---------- journey map: mock Northern Virginia locations + E1 site mini-plan ---------- */
+const JR = {   // all coordinates are mock, for illustration only
+  VENDOR: { x: 92, y: 74, t: 'distribution', s: 'STERLING, VA', cls: 'vendor' },
+  DEPOT: { x: 262, y: 148, t: 'Service Center', s: 'CHANTILLY, VA', cls: 'depot' },
+  WH: { x: 96, y: 214, t: 'Nimbus central warehouse', s: 'MANASSAS, VA', cls: 'wh' },
+  SITE: { x: 272, y: 74, t: 'Nimbus East 1', s: 'ASHBURN, VA', cls: 'site' },
+  OTHER: { x: 292, y: 216, t: 'Other site', s: 'OFF MAP', cls: 'other' },
+};
+const JS = { x: 14, y: 246, w: 332, h: 204 };   // compact so the whole route fits above the lineage window on a phone                 // E1 site inset
+const JSR = { x: JS.x + 14, y: JS.y + 24, w: 128, h: 92 };     // storeroom inside the inset
+const JQ = { x: JS.x + 14, y: JS.y + 124, w: 128, h: 34 };     // quarantine cage
+const JB = { B1: { x: JS.x + 162, y: JS.y + 24, w: 74, h: 170 }, B2: { x: JS.x + 246, y: JS.y + 24, w: 74, h: 170 } };
+const JZ = { yard: [.5, .1], elec: [.5, .32], mech: [.5, .56], hall: [.5, .82] };
+function jrPt(loc, site, nth) {
+  if (!loc) return null;
+  const off = n => [(n % 3) * 7 - 7, Math.floor(n / 3) * 7];
+  if (loc.startsWith('VENDOR:')) return [JR.VENDOR.x, JR.VENDOR.y];
+  if (loc === 'WH-CENTRAL') return [JR.WH.x, JR.WH.y];
+  if (loc.startsWith('DEPOT:')) return [JR.DEPOT.x, JR.DEPOT.y];
+  if (P[loc]) {
+    if (loc.slice(0, 2) !== site) return [JR.OTHER.x, JR.OTHER.y];
+    const r = JB[loc.slice(3, 5)], z = JZ[ZONE_OF[P[loc].cls]] || [.5, .5], o = off(nth || 0);
+    return [r.x + r.w * z[0] + o[0], r.y + r.h * z[1] + 10 + o[1]];
+  }
+  const [sr, bin] = loc.split(':');
+  if (sr.slice(0, 2) !== site) return [JR.OTHER.x, JR.OTHER.y];
+  if (bin === 'QUARANTINE') return [JQ.x + JQ.w / 2, JQ.y + JQ.h / 2 + 4];
+  const [row, col] = bin.split('-'); return [JSR.x + 12 + (+col - 1) * 14.6, JSR.y + 22 + BINS.indexOf(row) * 18];
+}
+// which steps a mode covers: "vendor" = whole trip; "loop" = issue from stock -> in service -> quarantine -> repair -> back into stock
+function linRange(st, mode) {
+  const rep = st.findIndex(s => s.ev === 'sent_for_repair');
+  if (mode !== 'loop' || rep < 0) return [0, st.length - 1];
+  let a = rep; while (a > 0 && st[a].ev !== 'installed') a--;
+  const back = st.findIndex((s, i) => i > rep && s.ev === 'returned');
+  return [Math.max(0, a - 1), back < 0 ? st.length - 1 : back];
+}
+// label card sits above its pin; route stops land on the pin, so numbers never cover the name
+function jrNode(k, n, used, title, style = '') {
+  const w = 108, h = 32, y0 = n.y - 44;
+  return `<g class="jr-node ${n.cls}${used ? ' used' : ''}"><line x1="${n.x}" y1="${y0 + h}" x2="${n.x}" y2="${n.y}" stroke="var(--line)" stroke-width="1"/><circle cx="${n.x}" cy="${n.y}" r="2.5" fill="var(--ink-3)"/>
+    <rect x="${n.x - w / 2}" y="${y0}" width="${w}" height="${h}" rx="6" style="${style}"/>
+    <text x="${n.x}" y="${y0 + 12}" text-anchor="middle" class="jr-t">${esc(title)}</text>
+    <text x="${n.x}" y="${y0 + 21}" text-anchor="middle" class="jr-s">${esc(n.s)}</text>
+    <text x="${n.x}" y="${y0 + 28.5}" text-anchor="middle" class="jr-mock">(mock)</text></g>`;
+}
+function journeySVG(aid, site) {
+  const a = D.lineage[aid], st = linSteps(aid), [r0, r1] = linRange(st, S.linMode);
+  const vend = (st.find(s => s.from && s.from.startsWith('VENDOR:')) || {}).from, dep = (st.find(s => s.to.startsWith('DEPOT:')) || {}).to;
+  const usedK = k => st.some((s, i) => i >= r0 && i <= r1 && (k === 'VENDOR' ? s.to.startsWith('VENDOR:') || (i === r0 && s.from && s.from.startsWith('VENDOR:')) : k === 'WH' ? s.to === 'WH-CENTRAL' : s.to.startsWith('DEPOT:')));
+  let h = `<rect x="4" y="8" width="352" height="228" rx="8" fill="var(--yard)" stroke="var(--line-soft)"/>
+    <text x="12" y="22" class="jr-lab">NORTHERN VIRGINIA · JOURNEY MAP · LOCATIONS ARE MOCK</text>
+    <path class="jr-road" stroke-width="7" d="M10 100 C 90 106, 170 104, 350 94"/><text x="300" y="89" class="jr-s">DULLES TOLL RD</text>
+    <path class="jr-road" stroke-width="7" d="M10 182 C 120 166, 230 170, 350 160"/><text x="18" y="176" class="jr-s">I-66</text>
+    <path class="jr-road" stroke-width="5" d="M150 234 C 160 180, 175 110, 196 14"/><text x="160" y="228" class="jr-s">VA-28</text>
+    <path class="jr-road" stroke-width="4" d="M40 16 C 70 60, 60 120, 120 234" opacity=".7"/>`;
+  h += jrNode('VENDOR', JR.VENDOR, usedK('VENDOR'), `${vend ? vend.slice(7) : a.mfr} distribution`);
+  h += jrNode('DEPOT', JR.DEPOT, usedK('DEPOT'), dep ? dep.slice(6) : `${a.mfr} service center`);
+  h += jrNode('WH', JR.WH, usedK('WH'), JR.WH.t);
+  h += jrNode('OTHER', JR.OTHER, false, JR.OTHER.t);
+  // E1 site pin + leader into the inset
+  h += jrNode('SITE', JR.SITE, true, `${(D.names[site] || site).replace(/ \(.*\)/, '')} site`, 'stroke:var(--accent)') + `
+    <path d="M${JR.SITE.x} ${JR.SITE.y} C ${JR.SITE.x + 70} 130, ${JS.x + JS.w - 20} 200, ${JS.x + JS.w - 30} ${JS.y}" fill="none" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`;
+  // inset: site mini-plan
+  h += `<rect x="${JS.x}" y="${JS.y}" width="${JS.w}" height="${JS.h}" rx="10" fill="var(--paper)" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="6 3"/>
+    <text x="${JS.x + 10}" y="${JS.y + 16}" class="jr-lab">${esc((D.names[site] || site).toUpperCase())} · SITE MINI-PLAN</text>
+    <g class="store" data-store="${site}-SR"><rect x="${JSR.x}" y="${JSR.y}" width="${JSR.w}" height="${JSR.h}" rx="4" fill="var(--sheet)" stroke="var(--line)" stroke-width="1.2"/>
+    <text x="${JSR.x + 6}" y="${JSR.y + 11}" class="jr-lab">STOREROOM</text>`;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) h += `<rect x="${JSR.x + 6 + c * 14.6}" y="${JSR.y + 16 + r * 18}" width="12" height="12" rx="1.5" fill="var(--seq0)" stroke="var(--line-soft)" stroke-width=".6"/>`;
+  h += `</g><rect x="${JQ.x}" y="${JQ.y}" width="${JQ.w}" height="${JQ.h}" rx="4" fill="color-mix(in srgb, var(--crit) 10%, var(--sheet))" stroke="var(--crit)" stroke-dasharray="3 2"/>
+    <text x="${JQ.x + 6}" y="${JQ.y + 11}" class="jr-lab" style="fill:var(--crit)">QUARANTINE</text>
+    <rect x="${JS.x + 14}" y="${JS.y + 166}" width="128" height="28" rx="4" fill="var(--sheet)" stroke="var(--line-soft)"/><text x="${JS.x + 78}" y="${JS.y + 183}" text-anchor="middle" class="jr-lab">RECEIVING DOCK</text>`;
+  const posUsed = new Set(st.filter((s, i) => i >= r0 && i <= r1 && P[s.to]).map(s => s.to));
+  Object.entries(JB).forEach(([bb, r]) => {
+    const b = `${site}-${bb}`;
+    h += `<g class="bld" data-bld="${b}"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="var(--sheet)" stroke="var(--line)" stroke-width="1.2"/>
+      <text x="${r.x + r.w / 2}" y="${r.y + 11}" text-anchor="middle" class="jr-lab">BUILDING ${bb}</text>`;
+    Object.entries(JZ).forEach(([z, [, fy]]) => h += `<text x="${r.x + 4}" y="${r.y + r.h * fy + 2}" class="jr-s">${ZSHORT[z]}</text>`);
+    h += '</g>';
+  });
+  posUsed.forEach(pid => { const p = jrPt(pid, site); if (p) h += `<rect class="jr-pos" x="${p[0] - 18}" y="${p[1] - 9}" width="36" height="18" rx="3"/><text x="${p[0]}" y="${p[1] + 15}" text-anchor="middle" class="jr-s" style="fill:var(--accent)">${esc(titleOf(pid))}</text>`; });
+  // legs, stops (repeat visits to one spot fan out a little)
+  const seen = {}, pts = st.map(s => { const base = jrPt(s.to, site); if (!base) return null; const key = base.join(','); const n = seen[key] = (seen[key] || 0) + 1; return n === 1 ? base : [base[0] + (n - 1) * 9, base[1] - (n - 1) * 9]; });
+  let legs = '', stops = '';
+  const o = st[0].from && jrPt(st[0].from, site);
+  if (o && pts[0]) {
+    const [x1, y1] = o, [x2, y2] = pts[0], mx = (x1 + x2) / 2 + (y2 - y1) * .18, my = (y1 + y2) / 2 - (x2 - x1) * .18;
+    legs += `<path class="lin leg old${r0 === 0 ? '' : ' dim'}" data-leg="0" d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" marker-end="url(#arrO)"/>`;
+    stops += `<g class="stop origin${r0 === 0 ? '' : ' dim'}"><circle cx="${x1}" cy="${y1}" r="7"/><text x="${x1}" y="${y1 + 2.6}" text-anchor="middle">◆</text></g>`;
+  }
+  st.forEach((s, k) => {
+    const p = pts[k]; if (!p) return; const inR = k >= r0 && k <= r1;
+    if (k > 0 && pts[k - 1]) {
+      const [x1, y1] = pts[k - 1], [x2, y2] = p, bend = .18, mx = (x1 + x2) / 2 + (y2 - y1) * bend, my = (y1 + y2) / 2 - (x2 - x1) * bend;
+      const legIn = inR && k - 1 >= r0;
+      legs += `<path class="lin leg ${s.t >= SIX_MO ? 'recent' : 'old'}${legIn ? '' : ' dim'}" data-leg="${k}" d="M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}" marker-end="url(#arr${s.t >= SIX_MO ? 'R' : 'O'})"/>`;
+    }
+    stops += `<g class="stop${s.t >= SIX_MO ? ' recent' : ''}${inR ? '' : ' dim'}" data-step="${k}"><circle cx="${p[0]}" cy="${p[1]}" r="7"/><text x="${p[0]}" y="${p[1] + 2.6}" text-anchor="middle">${k + 1}</text></g>`;
+  });
+  const cp = pts[st.length - 1];
+  if (cp) stops += `<g class="now"><circle cx="${cp[0]}" cy="${cp[1]}" r="11"/><text x="${cp[0] - 13}" y="${cp[1] - 11}" text-anchor="end">NOW</text></g>`;
+  return `<defs><marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--accent)"/></marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--ink-3)"/></marker></defs>
+    ${h}<g class="linlayer">${legs}${stops}</g>`;
 }
 function openLineage(aid) { opened();
   const a = D.lineage[aid]; if (!a) return toast('No movement history for this asset');
@@ -1921,7 +2092,7 @@ function openLineage(aid) { opened();
   if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (S.sel) closePanel(true);
   const st = linSteps(aid), cur = st[st.length - 1], six = locAt(st, SIX_MO);
   const curSite = (P[cur.to] ? cur.to : cur.to.startsWith('E1') || cur.to.startsWith('W1') ? cur.to : S.b).slice(0, 2);
-  S.lin = aid; S.linFocus = null;
+  stopReplay(); S.lin = aid; S.linFocus = null; S.linView = 'region'; S.linMode = 'vendor';
   if (S.b.slice(0, 2) !== curSite) S.b = curSite + '-B1';
   zoomTo('site');
   const moved6 = st.filter(s => s.t >= SIX_MO);
@@ -1931,13 +2102,57 @@ function openLineage(aid) { opened();
       <div class="stat"><b>${esc(locName(cur.to))}</b><span>Now · since ${new Date(cur.t).toISOString().slice(0, 10)}</span></div>
       <div class="stat six"><b>${esc(locName(six))}</b><span>6 months ago · ${new Date(SIX_MO).toISOString().slice(0, 10)}</span></div>
       <div class="stat"><b>${moved6.length} move${moved6.length === 1 ? '' : 's'}</b><span>in the last 6 months</span></div></div>
-    <div class="linchart">${linChart(st)}</div>
-    <ol class="lin-list">${st.map((s, k) => `<li class="${s.t >= SIX_MO ? 'recent' : ''}" data-step="${k}"><span class="n">${k + 1}</span>
+    <div class="linchart">${linCtl(st)}${linChart(st)}</div>
+    <ol class="lin-list">${st.map((s, k) => `<li class="${s.t >= SIX_MO ? 'recent' : ''}${linIn(st, k) ? '' : ' out'}" data-step="${k}"><span class="n">${k + 1}</span>
       <span class="b"><b>${EVN[s.ev] || s.ev}</b><span>${s.from ? esc(locName(s.from)) + ' → ' : ''}${esc(locName(s.to))}</span>
       <small>${new Date(s.t).toISOString().slice(0, 10)}${s.ref ? ' · ' + esc(s.ref) : ''}${s.note ? ' · ' + esc(s.note) : ''}</small></span></li>`).join('')}</ol>`;
   $('linwin').hidden = false; $('linTop').hidden = true;
   requestAnimationFrame(() => { $('linwin').classList.add('open'); requestAnimationFrame(() => $('linBody').querySelector('.linchart').classList.add('grow')); });
   document.querySelector('.drawing').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const linIn = (st, k) => { const [a, b] = linRange(st, S.linMode); return k >= a && k <= b; };
+function linCtl(st) {
+  const hasLoop = st.some(s => s.ev === 'sent_for_repair');
+  const b = (attr, v, cur, label, dis) => `<button type="button" ${attr}="${v}" class="${cur === v ? 'on' : ''}"${dis ? ' disabled' : ''}>${label}</button>`;
+  return `<div class="linctl"><span class="seg2">${b('data-linview', 'region', S.linView, 'Journey map')}${b('data-linview', 'site', S.linView, 'Site map')}</span>
+    <span class="seg2">${b('data-linmode', 'vendor', S.linMode, 'From vendor')}${b('data-linmode', 'loop', S.linMode, 'Repair loop', !hasLoop)}</span>
+    <button type="button" class="replay" data-replay>▶ Replay route</button></div>`;
+}
+function linRefresh() {
+  const st = linSteps(S.lin);
+  $('linBody').querySelectorAll('[data-linview]').forEach(x => x.classList.toggle('on', x.dataset.linview === S.linView));
+  $('linBody').querySelectorAll('[data-linmode]').forEach(x => x.classList.toggle('on', x.dataset.linmode === S.linMode));
+  $('linBody').querySelectorAll('.lin-list li').forEach(li => li.classList.toggle('out', !linIn(st, +li.dataset.step)));
+  drawPlan();
+}
+// replay: a dot runs each leg of the current mode in order; the matching row is focused as it arrives
+let REPLAY = null;
+function stopReplay() { if (REPLAY) { REPLAY.stop = true; cancelAnimationFrame(REPLAY.raf); REPLAY = null; } document.querySelectorAll('#plan .jr-dot').forEach(x => x.remove()); const b = document.querySelector('#linBody [data-replay]'); if (b) b.textContent = '▶ Replay route'; }
+function replay() {
+  if (REPLAY) return stopReplay();
+  const st = linSteps(S.lin), [r0, r1] = linRange(st, S.linMode), layer = $('plan').querySelector('.linlayer'); if (!layer) return;
+  document.querySelector('.drawing').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); dot.setAttribute('r', 5.5); dot.setAttribute('class', 'jr-dot'); layer.appendChild(dot);
+  const R = REPLAY = { stop: false, raf: 0 }, btn = document.querySelector('#linBody [data-replay]'); if (btn) btn.textContent = '■ Stop';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, LEG = reduce ? 0 : 900, PAUSE = reduce ? 700 : 350;
+  const lead = layer.querySelector(`path.leg[data-leg="${r0}"]:not(.dim)`);
+  const first = lead ? null : layer.querySelector(`.stop[data-step="${r0}"] circle`);
+  if (lead) { const p0 = lead.getPointAtLength(0); dot.setAttribute('cx', p0.x); dot.setAttribute('cy', p0.y); }
+  else if (first) { dot.setAttribute('cx', first.getAttribute('cx')); dot.setAttribute('cy', first.getAttribute('cy')); focusStep(r0); }
+  let k = lead ? r0 : r0 + 1;
+  const next = () => {
+    if (R.stop) return;
+    if (k > r1) { setTimeout(() => { if (!R.stop) { stopReplay(); toast('Route replayed'); } }, 600); return; }
+    const path = layer.querySelector(`path[data-leg="${k}"]`);
+    if (!path) { focusStep(k); k++; return setTimeout(next, PAUSE); }
+    const L = path.getTotalLength(), t0 = performance.now();
+    const step = now => { if (R.stop) return; const f = LEG ? Math.min(1, (now - t0) / LEG) : 1, e = f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2, pt = path.getPointAtLength(L * e);
+      dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+      if (f < 1) R.raf = requestAnimationFrame(step); else { focusStep(k); k++; setTimeout(next, PAUSE); } };
+    R.raf = requestAnimationFrame(step);
+  };
+  setTimeout(next, PAUSE);
 }
 // time at each location as one segmented bar; last 6 months get 65% of the width so recent moves stay readable
 function linChart(st) {
@@ -1962,7 +2177,7 @@ function linChart(st) {
     <text x="${x0}" y="9" class="axl">${new Date(t0).toISOString().slice(0, 7)}</text><text x="${x1}" y="9" class="axl" text-anchor="end">NOW</text>
     ${s}${lab}<circle cx="${x1}" cy="23" r="3" class="nowdot"/></svg>`;
 }
-function closeLineage() { S.lin = null; $('linwin').classList.remove('open'); $('linwin').hidden = true; drawPlan(); }
+function closeLineage() { stopReplay(); S.lin = null; $('linwin').classList.remove('open'); $('linwin').hidden = true; drawPlan(); }
 // dot (chart or map) -> jump to its row; row -> lift it to the top, under the chart
 function focusStep(k, fromRow) {
   document.querySelectorAll('#plan .stop').forEach(s => s.classList.toggle('focus', +s.dataset.step === k));
@@ -1970,7 +2185,11 @@ function focusStep(k, fromRow) {
   const li = document.querySelector(`#linBody li[data-step="${k}"]`); if (!li) return;
   li.scrollIntoView({ block: fromRow ? 'start' : 'center', behavior: 'smooth' });
 }
-$('linBody').addEventListener('click', e => { const n = e.target.closest('[data-step]'); if (n) focusStep(+n.dataset.step, n.tagName === 'LI'); });
+$('linBody').addEventListener('click', e => {
+  const v = e.target.closest('[data-linview]'); if (v) { stopReplay(); S.linView = v.dataset.linview; return linRefresh(); }
+  const md = e.target.closest('[data-linmode]'); if (md) { if (md.disabled) return; stopReplay(); S.linMode = md.dataset.linmode; linRefresh(); toast(S.linMode === 'loop' ? 'Repair loop: stock → in service → quarantine → repair → stock' : 'From vendor: the full trip'); return; }
+  if (e.target.closest('[data-replay]')) return replay();
+  const n = e.target.closest('[data-step]'); if (n) focusStep(+n.dataset.step, n.tagName === 'LI'); });
 $('linBody').addEventListener('scroll', () => { $('linTop').hidden = $('linBody').scrollTop < 140; });
 $('linTop').onclick = () => $('linBody').scrollTo({ top: 0, behavior: 'smooth' });
 // storeroom stock: what's on the shelves now, each with its lineage
@@ -1997,7 +2216,7 @@ function goHome() {
   updateCrumbs();
   $('qres').hidden = true;
   if (!$('linwin').hidden) { $('linwin').classList.remove('open'); $('linwin').hidden = true; }
-  S.lin = null; S.view = 'building';
+  stopReplay(); S.lin = null; S.view = 'building';
   if (S.sel) closePanel(true);
   renderAll();
   window.scrollTo({ top: 0, behavior: 'smooth' });
