@@ -97,11 +97,12 @@ body.oncover .tiles, body.oncover .controls, body.oncover .timebar, body.oncover
 
 .main { display: grid; gap: 12px; min-width: 0; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.kpi { background: var(--sheet); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px; }
+.kpi { min-width: 0; overflow: hidden; background: var(--sheet); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px; }
 .kpi b { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 @keyframes kflash { from { opacity: .35; } to { opacity: 1; } }
 .kpis.kflash .kpi b { animation: kflash .35s ease-out; }
-.kpi span { white-space: nowrap; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+.kpi i { display: block; font-style: normal; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.kpi .kl { display: block; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--ink-2); }
 @media (max-width: 420px) { .kpi b { font-size: 15px; } .kpi { padding: 7px 8px; } }
 
 .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; color: var(--ink-2); }
@@ -466,7 +467,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.9 · synthetic</span>
+      <span class="chip">v10.10 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -1696,20 +1697,20 @@ function kpiScope0() {
   return { ids: bldIds(S.b), label: 'Building ' + S.b.slice(3) };
 }
 function renderKpis() {
-  const sc = kpiScope(), ids = sc.ids, sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
-  const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
-  const mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
-  $('kpis').innerHTML = (mo == null ? [
-    [usd(sum(p => p.k.spend)), 'Spend'],
-    [num(sum(p => p.k.alarms90)), 'Alarms 90d'],
-    [num(sum(p => p.k.open)), 'Open WOs'],
-  ] : [
-    [usd(sum(p => p.ms[mo])), 'Spend ' + ml],
-    [num(sum(p => p.ma[mo])), 'Alarms ' + ml],
-    [num(sum(p => p.mc[mo])), 'CM WOs ' + ml],
-  ]).concat([
-    [`<span style="color:${crit ? 'var(--crit)' : 'inherit'}">${crit}</span> / <span style="color:${warn ? '#b07a00' : 'inherit'}">${warn}</span>`, 'Crit / warn'],
-  ]).map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+  /* v10.10: WOs · POs · Alarms · Insights, scoped to the drill and the owner filter */
+  const sc = kpiScope(), ids = sc.ids, set = new Set(ids), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
+  const mo = S.month, mk = mo != null ? M[mo] : null, ml = mo != null ? mlabel(M[mo]) : '';
+  const inMo = (m, id) => recs(m, id).filter(r => String(r[0]).startsWith(mk)).length;
+  const cnt = m => ids.reduce((a, id) => a + (mk ? inMo(m, id) : (((D.rec || {})[m] || {})[id] || []).length), 0);
+  const wos = mk ? cnt('wos') : sum(p => p.k.wos), pos = cnt('po');
+  const alarms = mk ? sum(p => p.ma[mo]) : sum(p => p.k.alarms);
+  const fs = D.findings.filter(f => set.has(f.id)), crit = fs.filter(f => f.sev === 'critical').length;
+  $('kpis').innerHTML = [
+    [num(wos), 'WOs', mk ? ml : num(sum(p => p.k.open)) + ' open'],
+    [num(pos), 'POs', mk ? ml : usd(sum(p => p.k.spend))],
+    [num(alarms), 'Alarms', mk ? ml : num(sum(p => p.k.alarms90)) + ' / 90d'],
+    [`<span style="color:${crit ? 'var(--crit)' : 'inherit'}">${num(fs.length)}</span>`, 'Insights', crit ? crit + ' critical' : 'none critical'],
+  ].map(([v, l, sub]) => `<div class="kpi"><b>${v}</b><span class="kl">${l}</span>${sub ? `<i>${sub}</i>` : ''}</div>`).join('');
   $('kpis').classList.remove('kflash'); void $('kpis').offsetWidth; $('kpis').classList.add('kflash');
 }
 function renderLegend() {
