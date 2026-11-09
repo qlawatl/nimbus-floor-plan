@@ -63,7 +63,7 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
   const rows = [
     ['Problem', 'A data center unit\'s history is shattered across six or more systems. The technician standing at it sees one slice, and only with a signal.'],
     ['Product', 'Lumo unifies operations, purchasing, finance and workforce records at the physical unit, logs every change, and ships a whole site as an encrypted offline file.'],
-    ['Proof', 'Working product (v10) on a synthetic two-site operator: 49K records packed into 0.49 MB (24x smaller than raw JSON), the whole product in 0.9 MB, every drill-down under 8 ms.'],
+    ['Proof', 'Working product (v10) on a synthetic two-site operator: 49K records in 0.49 MB (24x smaller than raw JSON), whole product 0.9 MB, median drill-down 1.1 ms, offline.'],
     ['Buyers', 'Hyperscale operators who own the sites, and integrated facility management (IFM) providers such as ABM who run them.'],
     ['Ask', '$200K SkyDeck Cohort investment to plug into live CMMS, BMS and ERP systems and land the first paid pilots.'],
   ];
@@ -98,6 +98,24 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
     { text: 'Most tools need a network connection the data hall may not allow.', options: { bullet: true } },
   ], { x: 6.55, y: 1.75, w: 3.0, h: 3.0, fontSize: 12.5, paraSpaceAfter: 8 });
   note(s, 'Systems shown are the six source feeds modeled in the MVP. The "40 alarms" line is illustrative.');
+}
+
+/* 3b Disconnected: no shared key */
+{
+  const s = base(); title(s, 'The systems don\'t share a key, so a connected view of the unit can\'t exist until something links them');
+  const ids = [['BMS alarm', 'E1.B1.CH.02.CH_LOW_EVAP_TEMP', 'point name + tag TAG-CH-100022'], ['CMMS work order', 'WO-3000159', 'position E1-B1-CH-02 · asset A100022'], ['ERP invoice', 'INV-0000175', 'vendor no. POL-500175 · PO-4500157 only']];
+  ids.forEach(([sys, id, sub], i) => {
+    const y = 1.45 + i * 1.18;
+    box(s, M, y, 3.6, 0.95, CARD, LINE, 0.08);
+    txt(s, [{ text: sys, options: { bold: true, color: INK, breakLine: true } }, { text: id, options: { fontFace: 'Courier New', color: TXT, breakLine: true, fontSize: 11.5 } }, { text: sub, options: { color: MUT, fontSize: 11 } }], { x: M + 0.15, y: y + 0.1, w: 3.35, h: 0.8, fontSize: 13 });
+    arrow(s, M + 3.65, y + 0.47, 4.75, 3.08, ACC);
+  });
+  box(s, 4.8, 2.6, 1.9, 0.95, ACC, null, 0.1);
+  txt(s, [{ text: 'Lumo crosswalk', options: { bold: true, breakLine: true } }, { text: '→ E1-B1-CH-02', options: { fontFace: 'Courier New', color: 'D9F2EE', fontSize: 11 } }], { x: 4.9, y: 2.75, w: 1.7, h: 0.7, fontSize: 13, color: 'FFFFFF', align: 'center' });
+  txt(s, '29%', { x: 7.05, y: 1.4, w: 2.4, h: 0.75, fontSize: 44, bold: true, color: RED });
+  txt(s, 'of the average enterprise\'s 897 applications are integrated¹', { x: 7.05, y: 2.15, w: 2.45, h: 0.6, fontSize: 12, color: TXT });
+  txt(s, [{ text: 'In the demo: ', options: { bold: true, color: INK } }, { text: 'all 14,474 alarms name a BMS point, not a unit, and all 3,740 invoices name only a PO. Lumo links every one to one of 172 positions.' }], { x: 7.05, y: 3.05, w: 2.45, h: 1.8, fontSize: 12 });
+  note(s, '¹ MuleSoft 2025 Connectivity Benchmark Report (1,050 IT leaders), via Salesforce, Feb 2025. IDs shown are from the MVP\'s synthetic dataset.');
 }
 
 /* 4 Stakes */
@@ -205,8 +223,8 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
 
 /* 7b Instant at scale */
 {
-  const s = base(); title(s, 'Sub-millisecond median drill-downs across 49,000 records. No spinners, no server');
-  const stats = [['0.7 ms', 'median drill-down', '1,032 drill-downs: every unit × record type. Slowest 7.2 ms'], ['0.1 ms', 'median month filter', 'on the largest list (359 labor records), 110 filters'], ['0.5 s', 'to open the whole file', 'decompress and index 49K records for both sites']];
+  const s = base(); title(s, 'One-millisecond drill-downs across 49,000 records. No spinners, no server');
+  const stats = [['1.1 ms', 'median drill-down', '1,032 drill-downs: every unit × record type. 95th percentile 2.1 ms'], ['0.4 ms', 'median time filter', 'flipping the largest list (359 records) month to month'], ['0.6 s', 'to open the whole file', 'decompress and index 49K records for both sites']];
   stats.forEach(([big, lab, sub], i) => {
     const x = M + i * 3.05;
     box(s, x, 1.45, 2.8, 2.15, CARD, LINE, 0.08);
@@ -214,15 +232,31 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
     txt(s, lab, { x: x + 0.22, y: 2.42, w: 2.4, h: 0.3, fontSize: 13, bold: true, color: INK });
     txt(s, sub, { x: x + 0.22, y: 2.76, w: 2.4, h: 0.75, fontSize: 11.5, color: MUT });
   });
-  // frame budget bar: 16.7 ms with the slowest drill marked
   txt(s, 'One screen refresh at 60 fps = 16.7 ms', { x: M, y: 3.82, w: 4.5, h: 0.3, fontSize: 12, bold: true, color: INK });
   box(s, M, 4.17, 9.0, 0.32, 'E9EDEF', null, 0.04);
-  box(s, M, 4.17, 9.0 * 7.2 / 16.7, 0.32, '8FC9C1', null, 0.04);
-  box(s, M, 4.17, Math.max(0.05, 9.0 * 0.7 / 16.7), 0.32, ACC, null, 0.02);
-  txt(s, 'median 0.7 ms', { x: M + 0.45, y: 4.2, w: 1.5, h: 0.26, fontSize: 10.5, bold: true, color: INK });
-  txt(s, 'slowest 7.2 ms', { x: M + 9.0 * 7.2 / 16.7 + 0.1, y: 4.2, w: 1.6, h: 0.26, fontSize: 10.5, color: INK });
-  txt(s, 'No server round trip: the data ships indexed by position and every query runs on the device.', { x: M, y: 4.62, w: 9, h: 0.3, fontSize: 12.5, color: TXT });
-  note(s, 'Measured Nov 9 2026 in headless Chrome on a 2-core cloud VM, v10.1 build, synthetic dataset. Times are script time to build each view, before paint; phones will vary.');
+  box(s, M, 4.17, 9.0 * 13.3 / 16.7, 0.32, '8FC9C1', null, 0.04);
+  box(s, M, 4.17, Math.max(0.05, 9.0 * 1.1 / 16.7), 0.32, ACC, null, 0.02);
+  txt(s, 'median 1.1 ms', { x: M + 0.68, y: 4.2, w: 1.5, h: 0.26, fontSize: 10.5, bold: true, color: INK });
+  txt(s, 'slowest 13.3 ms', { x: M + 9.0 * 13.3 / 16.7 + 0.1, y: 4.2, w: 1.7, h: 0.26, fontSize: 10.5, color: INK });
+  txt(s, 'Every one of 1,032 drill-downs finished inside a single screen refresh, on the device.', { x: M, y: 4.62, w: 9, h: 0.3, fontSize: 12.5, color: TXT });
+  note(s, 'Measured Nov 9 2026, v10.3 build, synthetic dataset, headless Chrome on a 2-core cloud VM; slowest is the worst of three runs. Script time to build each view, before paint; phones will vary.');
+}
+
+/* 7c Today vs Lumo */
+{
+  const s = base(); title(s, '"What happened at this unit?" takes six systems today. Lumo answers in one tap, offline');
+  const col = (x, w, head, sub, rows, fill, line, hc) => {
+    box(s, x, 1.42, w, 3.0, fill, line, 0.08);
+    txt(s, head, { x: x + 0.2, y: 1.55, w: w - 0.4, h: 0.32, fontSize: 15, bold: true, color: hc || INK });
+    txt(s, sub, { x: x + 0.2, y: 1.88, w: w - 0.4, h: 0.3, fontSize: 10.5, color: MUT });
+    rows.forEach(([a, b, bad], i) => txt(s, [{ text: a, options: { bold: true, color: bad === 1 ? RED : bad === 2 ? ACC : INK } }, { text: '  ' + b }], { x: x + 0.2, y: 2.28 + i * 0.5, w: w - 0.35, h: 0.45, fontSize: 11.5 }));
+  };
+  col(M, 3.05, 'Today', 'BMS · paging · CMMS · labor · ERP · AP', [['6', 'systems to search, each with its own login'], ['3 hops', 'alarm → work order → PO → invoice, matched by hand'], ['Network', 'required for every one of them'], ['At the unit', 'no joined view without a signal', 1]], CARD, LINE);
+  col(M + 3.2, 2.75, 'Pre-joined on a server', 'all six sources already in one analytics database', [['6.7 ms', 'median per unit, plus the network round trip'], ['Network', 'still required'], ['At the unit', 'unavailable without a signal', 1]], CARD, LINE);
+  col(M + 6.1, 2.9, 'Lumo', 'one encrypted file on the device', [['1 tap', 'every record type at the unit'], ['1.1 ms', 'median, about 6x faster than the server', 2], ['Offline', 'no Wi-Fi or cell needed', 2], ['0.49 MB', 'for all 49,000 records', 2]], ACC_T, null, ACC);
+  box(s, M, 4.55, 9.0, 0.45, INK, null, 0.06);
+  txt(s, 'Field techs need this history most when there is no signal, and no system today can give it to them.', { x: M + 0.18, y: 4.62, w: 8.7, h: 0.32, fontSize: 12, bold: true, color: 'FFFFFF' });
+  note(s, 'Server figure: the same per-unit query across the six source tables in DuckDB, 172 units, median 6.7 ms (p95 9.2 ms), measured Nov 9 2026, excluding network. Step counts follow the MVP\'s six source feeds.');
 }
 
 /* 8 Pillar: lineage */
@@ -472,7 +506,8 @@ function arrow(s, x1, y1, x2, y2, color, dash) {
     { text: 'Grand View Research, Data Center Maintenance and Support Services Market 2026–2033', options: { bullet: true, breakLine: true } },
     { text: 'Berkeley SkyDeck program page and newsletter, Jan 14 2026 (skydeck.berkeley.edu)', options: { bullet: true, breakLine: true } },
     { text: 'JLL, 2026 Global Data Center Outlook, Jan 2026; Data Center Frontier summary, Jan 8 2026', options: { bullet: true, breakLine: true } },
-    { text: 'Product figures: nimbus-floor-plan v10.1 build, size and response times measured Nov 9 2026 on the synthetic dataset', options: { bullet: true } },
+    { text: 'MuleSoft, 2025 Connectivity Benchmark Report, via Salesforce blog, Feb 2025', options: { bullet: true, breakLine: true } },
+    { text: 'Product figures: nimbus-floor-plan v10.1 build, size, compression and response times measured Nov 9 2026 on the synthetic dataset (v10.3)', options: { bullet: true } },
   ], { x: M, y: 1.3, w: 9, h: 3.7, fontSize: 12, paraSpaceAfter: 6 });
 }
 
