@@ -158,7 +158,8 @@ rec_alert = df("""SELECT x.position_id id, strftime(l.sent_ts, '%Y-%m-%d %H:%M')
   FROM notify_alerts l JOIN alarm_xwalk x USING (alarm_id)""")
 rec_wo = df("""SELECT position_id id, strftime(opened_ts, '%Y-%m-%d %H:%M') ts, wo_type || ' ' || priority k, wo_id wid, status, description d,
   strftime(closed_ts, '%Y-%m-%d %H:%M') closed_t, strftime(due_ts, '%Y-%m-%d %H:%M') due_t FROM cmms_work_orders""")
-rec_po = df("""SELECT w.position_id id, strftime(p.created_ts, '%Y-%m-%d %H:%M') ts, p.vendor k, p.po_number pid, p.amount amt, p.line_description d, p.wo_id wid
+rec_po = df("""SELECT w.position_id id, strftime(p.created_ts, '%Y-%m-%d %H:%M') ts, p.vendor k, p.po_number pid, p.amount amt, p.line_description d, p.wo_id wid,
+  p.rush, p.lead_days lead, p.high_cost hc
   FROM erp_purchase_orders p JOIN cmms_work_orders w USING (wo_id)""")
 rec_inv = df("""SELECT w.position_id id, strftime(i.invoice_date, '%Y-%m-%d') || ' 12:00' ts, i.vendor k, i.invoice_id iid, i.amount amt, i.po_number po
   FROM erp_invoices i JOIN erp_purchase_orders p USING (po_number) JOIN cmms_work_orders w ON w.wo_id = p.wo_id""")
@@ -222,7 +223,7 @@ REC = dict(
     alarms=enc(rec_alarm, ["ts", "k", "sev", "msg", "wo", "aid", "cleared_t"], {"k", "sev", "msg"}),
     alerts=enc(rec_alert, ["ts", "k", "aid", "alarm_id", "ack"], {"k"}),
     wos=enc(rec_wo, ["ts", "k", "wid", "status", "d", "closed_t", "due_t"], {"k", "status", "d"}),
-    po=enc(rec_po, ["ts", "k", "pid", "amt", "d", "wid"], {"k", "d"}),
+    po=enc(rec_po, ["ts", "k", "pid", "amt", "d", "wid", "rush", "lead", "hc"], {"k", "d"}),
     inv=enc(rec_inv, ["ts", "k", "iid", "amt", "po"], {"k"}),
     labor=enc(rec_lab, ["ts", "k", "hrs", "d", "wid"], {"k", "d"}),
 )

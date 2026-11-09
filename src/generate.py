@@ -469,6 +469,23 @@ for i in range(8):
 inv_df = pd.concat([inv_df, dups, pd.DataFrame(nopo)]).sort_values("invoice_date").reset_index(drop=True)
 po_df = pd.DataFrame(pos_rows)
 
+# ---------------------------------------------------------------- v10.2: priority and procurement attributes
+# own random stream, applied after every other record exists, so no other value in the dataset moves
+rng3 = np.random.default_rng(SEED + 11)
+# WO priority 1-5: PMs are re-graded by cadence (monthly -> P4 Routine, quarterly / semi-annual -> P5 Planned); CM keeps P1-P4
+wo_df.loc[(wo_df.wo_type == "PM") & wo_df.description.str.startswith("Monthly"), "priority"] = "P4"
+wo_df.loc[(wo_df.wo_type == "PM") & wo_df.description.str.contains("Quarterly|Semi-annual"), "priority"] = "P5"
+# POs: Rush follows the WO's urgency; lead time is long for major components; high cost from the amount
+wo_pri = dict(zip(wo_df.wo_id, wo_df.priority)); wo_typ = dict(zip(wo_df.wo_id, wo_df.wo_type)); wo_pos = dict(zip(wo_df.wo_id, wo_df.position_id))
+BIG = {"CH", "UPS", "SWGR", "GEN", "ATS", "CT"}
+rush, lead = [], []
+for p in po_df.itertuples():
+    pr, ty = wo_pri.get(p.wo_id, "P3"), wo_typ.get(p.wo_id, "CM")
+    rush.append(int(rng3.random() < {"P1": 0.45, "P2": 0.1, "P3": 0.04}.get(pr, 0.01) or p.amount >= 90000))
+    major = ty == "CM" and cls_of.get(wo_pos.get(p.wo_id)) in BIG and ("replace" in p.line_description.lower() or "assembly" in p.line_description.lower() or "rebuild" in p.line_description.lower() or rng3.random() < 0.18)
+    lead.append(int(rng3.integers(35, 120)) if major else int(rng3.integers(2, 15)) if ty == "CM" else int(rng3.integers(1, 6)))
+po_df["rush"] = rush; po_df["lead_days"] = lead; po_df["high_cost"] = (po_df.amount >= 15000).astype(int)
+
 vendors_df = pd.DataFrame(sorted({v for c in CLASSES.values() for v in c["vendors"]} | {"Sentinel Fire Protection", "AquaTreat Water Services"}), columns=["vendor"])
 vendors_df["vendor_id"] = [f"V{100 + i}" for i in range(len(vendors_df))]
 
