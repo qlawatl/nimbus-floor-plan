@@ -308,6 +308,9 @@ body.has-snap .wrap { padding-top: 54px; }
 .pgwrap.from-l { transform: translateX(-28px); opacity: .25; transition: none; }
 @media (prefers-reduced-motion: reduce) { .pgwrap { transition: none; } }
 .tl-chart svg { touch-action: pan-y; cursor: ew-resize; }
+.ast { margin-top: 3px; font: 11.5px/1.35 var(--font-mono); color: var(--ink-3); }
+.ast b { color: var(--ink-2); font-weight: 600; }
+.astold { font: 10px var(--font-ui); color: var(--info); border: 1px solid currentColor; border-radius: 6px; padding: 0 4px; margin-left: 2px; }
 .rh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .pri { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 3px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
   background: color-mix(in srgb, var(--c) 10%, var(--sheet)); color: var(--c); font: 700 11.5px var(--font-ui); line-height: 18px; white-space: nowrap; }
@@ -455,7 +458,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.4 · synthetic</span>
+      <span class="chip">v10.5 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -1191,9 +1194,24 @@ function recs(m, id) {
   let t = null;
   return RC[key] = raw.map(r => {
     t = t == null ? r[0] : t - r[0];   // first row absolute, then minutes back from the previous row
-    return r.map((v, i) => i === 0 ? tstr(t) : v == null ? null : tc.includes(i) ? tstr(t + v) : ic[i] ? PFX[ic[i]](v) : sc.includes(i) ? D.sd[v] : v);
+    const o = r.map((v, i) => i === 0 ? tstr(t) : v == null ? null : tc.includes(i) ? tstr(t + v) : ic[i] ? PFX[ic[i]](v) : sc.includes(i) ? D.sd[v] : v);
+    o.pos = id; return o;
   });
 }
+/* v10.5: the asset installed at a position on a record's date (follows swaps in the position history) */
+let TAG2AID = null;
+const AST = {};
+function assetAt(pid, ts) {
+  const p = P[pid]; if (!p) return null;
+  const d = String(ts || '').slice(0, 10), key = pid + '|' + d; if (AST[key]) return AST[key];
+  if (!TAG2AID) { TAG2AID = {}; Object.entries(D.lineage || {}).forEach(([aid, a]) => { TAG2AID[a.tag] = aid; }); PIDS.forEach(x => { const a = P[x].asset; if (a) TAG2AID[a.tag] = a.id; }); }
+  const hs = (p.hist || []).slice().sort((a, b) => a.frm < b.frm ? -1 : 1);
+  const h = hs.filter(x => x.frm <= d).pop() || hs[0] || p.asset;
+  if (!h) return null;
+  const tag = h.tag, aid = TAG2AID[tag] || (/-(\d+)$/.exec(tag || '') ? 'A' + /-(\d+)$/.exec(tag)[1] : '—');
+  return AST[key] = { aid, tag, desc: `${h.mfr} ${h.model} · ${CLS[p.cls] || p.cls}`, swapped: p.asset && tag !== p.asset.tag };
+}
+const astLine = r => { const a = r && r.pos ? assetAt(r.pos, r[0]) : null; return a ? `<div class="ast"><b>${esc(a.aid)}</b> · ${esc(a.desc)}${a.swapped ? ' <span class="astold">earlier asset</span>' : ''}</div>` : ''; };
 const laborN = id => ((D.bd.labor || {})[id] || []).reduce((a, r) => a + r[2], 0);
 const PAGE = 25;
 // render the first page; the "load more" button appends the next 25 until the end
@@ -1519,7 +1537,8 @@ function buildLookups() {
 const idNum = s => s == null ? null : +String(s).split('-')[1];
 const poFlags = po => { if (!PO_FLAGS) buildLookups(); return PO_FLAGS[idNum(po)]; };
 const woPri = wo => { if (!WO_PRI) buildLookups(); return WO_PRI[idNum(wo)]; };
-function recRow(m, r, hit) {
+function recRow(m, r, hit) { const h = recRow0(m, r, hit), i = h.indexOf('</span><span class="amt">'); return i < 0 ? h : h.slice(0, i) + astLine(r) + h.slice(i); }
+function recRow0(m, r, hit) {
   const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
   const cls = ` class="lc${hit ? ' hit' : ''}" data-ent="${esc(ent)}" tabindex="0" role="button"`;
   switch (m) {
@@ -2141,19 +2160,19 @@ function renderTable() {
   h += `<div class="sect">${Z ? 'By unit' : 'Groups'} · tap to filter${Z ? ', ›  to open the unit' : ''}</div><div class="tscroll"><table class="tg"><thead><tr><th>${Z ? 'Unit' : 'Group'}</th><th class="r">Records</th><th class="r">Value</th><th></th></tr></thead><tbody>
     ${groups.map(g => `<tr data-item="${esc(g.key)}" class="${TB.item === g.key ? 'on' : ''}"><td><b>${esc(g.label)}</b><div class="mut">${esc(g.sub || '')}</div></td><td class="r mono">${num(g.n ?? g.v)}</td><td class="r mono">${esc(g.vs)}</td><td class="r">${g.kind === 'pos' ? `<button type="button" class="tbtn" data-open-unit="${g.key}">›</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
   if (m === 'findings') { $('tblBody').innerHTML = h; return; }
-  const cols = (Z ? [['Unit', -1]] : []).concat(TCOLS[m]);
+  const cols = (Z ? [['Unit', -1]] : []).concat(TCOLS[m].slice(0, 1), [['Asset', -2, 'asset']], TCOLS[m].slice(1));
   let rows = (Z ? ZONES[id].members : [id]).flatMap(pid => recs(m, pid).map(r => ({ pid, r })));
   if (TB.item) rows = rows.filter(x => Z ? x.pid === TB.item : x.r[1] === TB.item);
   const monRows = rows; if (TB.mon) rows = rows.filter(x => String(x.r[0]).startsWith(TB.mon));
-  if (TB.q) { const q = TB.q.toLowerCase(); rows = rows.filter(x => (x.pid + ' ' + x.r.join(' ')).toLowerCase().includes(q)); }
-  const sc = TB.sort ?? 0, val = x => sc === -1 ? x.pid : x.r[sc];
+  if (TB.q) { const q = TB.q.toLowerCase(); rows = rows.filter(x => { const a = assetAt(x.pid, x.r[0]) || {}; return (x.pid + ' ' + a.aid + ' ' + a.tag + ' ' + a.desc + ' ' + x.r.join(' ')).toLowerCase().includes(q); }); }
+  const sc = TB.sort ?? 0, val = x => sc === -1 ? x.pid : sc === -2 ? (assetAt(x.pid, x.r[0]) || {}).aid : x.r[sc];
   rows.sort((a, b) => { const A = val(a), B = val(b); return (A == null) - (B == null) || (A < B ? -1 : A > B ? 1 : 0) * (TB.sort == null ? -1 : TB.dir); });
   const shown = rows.slice(0, TB.shown);
   h += tlChart(monRows.map(x => x.r), TB.mon);
   h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}${TB.mon ? `<button type="button" class="chip on" data-clearmon>${mlabel(TB.mon)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
     <div class="tscroll"><table class="tg recs"><thead><tr>${cols.map(([l, i, kind]) => `<th data-sort="${i}" class="${kind === 'usd' || kind === 'num' ? 'r' : ''}">${l}${(TB.sort ?? 0) === i ? (TB.sort == null || TB.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>
     ${shown.map(({ pid, r }) => { const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
-      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : kind === 'pri' || kind === 'po' ? 'pricell' : ''}">${kind === 'pri' ? priPill(r[i]) : kind === 'po' ? poPills(r[6], r[7], r[8]) : esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
+      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : kind === 'pri' || kind === 'po' ? 'pricell' : ''}">${kind === 'asset' ? (a => a ? `<b class="mono">${esc(a.aid)}</b><div class="mut">${esc(a.desc)}</div>` : '')(assetAt(pid, r[0])) : kind === 'pri' ? priPill(r[i]) : kind === 'po' ? poPills(r[6], r[7], r[8]) : esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
     ${rows.length > TB.shown ? `<button type="button" class="more" data-tmore>Load ${Math.min(PAGE, rows.length - TB.shown)} more · ${TB.shown} of ${rows.length} shown</button>` : `<div class="endnote">All ${rows.length} shown · tap a row to follow its lifecycle</div>`}`;
   $('tblBody').innerHTML = h;
 }
