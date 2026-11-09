@@ -81,7 +81,13 @@ details.help[open] summary { margin-bottom: 6px; }
 .cv-blk { cursor: pointer; }
 .cv-blk:hover > rect:first-child { stroke-width: 2.4; }
 body.oncover .tiles, body.oncover .controls, body.oncover .timebar, body.oncover .legend, body.oncover #fcard, body.oncover .zoombtn { display: none !important; }
-body:not(.oncover) .aisum { display: none; }
+#grpbar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; align-items: center; }
+#grpbar::-webkit-scrollbar { display: none; }
+#grpbar button { flex: none; border: 1px solid var(--line-soft); background: var(--sheet); color: var(--ink-2); border-radius: 8px; padding: 5px 9px; font: 600 13px var(--font-ui); cursor: pointer; display: grid; line-height: 1.1; text-align: left; }
+#grpbar button small { font: 500 10px var(--font-mono); color: var(--ink-3); letter-spacing: .04em; }
+#grpbar button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--sheet); }
+#grpbar button[aria-pressed="true"] small { color: color-mix(in srgb, var(--sheet) 70%, transparent); }
+#grpbar .own { flex: none; font: 600 10px var(--font-mono); color: var(--ink-3); letter-spacing: .08em; padding: 0 2px 0 4px; }
 .seg { display: flex; gap: 0; border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden; background: var(--sheet); }
 .seg button { border: 0; background: none; padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
 .seg button + button { border-left: 1px solid var(--line-soft); }
@@ -460,7 +466,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.7 · synthetic</span>
+      <span class="chip">v10.8 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -469,11 +475,11 @@ body.has-snap .wrap { padding-top: 54px; }
       <div class="results" id="qres" hidden></div>
     </div>
   </header>
-  <section class="aisum" id="aisum" aria-label="Site summary"></section>
   <div class="tiles" id="tiles" role="group" aria-label="Building"></div>
 
   <div class="main">
     <nav id="where" aria-label="You are here"></nav>
+    <div id="grpbar" role="group" aria-label="Asset group"></div>
     <div class="kpis" id="kpis"></div>
     <div class="controls">
       <span>Color by</span>
@@ -495,6 +501,7 @@ body.has-snap .wrap { padding-top: 54px; }
     <div class="legend" id="legend"></div>
     <section class="card" id="fcard" aria-labelledby="fh"><h2 id="fh">Findings in this building</h2><div id="findList"></div></section>
     <section class="card" aria-labelledby="ph"><h2 id="ph">Portfolio findings · not tied to one position</h2><div id="portList"></div></section>
+    <section class="aisum" id="aisum" aria-label="Summary"></section>
   </div>
 
   <div class="scrim" id="scrim"></div>
@@ -619,10 +626,23 @@ try { D = await loadData(); }
 catch (err) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:16px;font:15px system-ui">This browser can\'t unpack the data. Update to iOS 16.4+ / a current browser.</p>'); return; }
 const P = D.positions, M = D.months;
 const BLD = [...new Set(Object.keys(P).map(id => id.slice(0, 5)))].sort();
-const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection', BRKR: 'Breaker element', VFD: 'VFD drive' };
+const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection', BRKR: 'Breaker element', VFD: 'VFD drive',
+  CDU: 'Coolant distribution unit', SUPP: 'Fire suppression', LEAK: 'Leak detection', WTR: 'Water treatment', RACK: 'Server rack', NET: 'Network switch' };
+/* v10.8: asset groups = the top-level filters. DCEO owns the facility groups, DCO owns IT. */
+const GROUPS = [
+  ['ELEC', 'Electrical', 'DCEO', ['SWGR', 'GEN', 'ATS', 'UPS', 'PDU', 'BRKR']],
+  ['MECH', 'Mechanical', 'DCEO', ['CH', 'CT', 'PUMP', 'VFD']],
+  ['COOL', 'Cooling', 'DCEO', ['CRAH', 'CDU']],
+  ['FIRE', 'Fire', 'DCEO', ['FIRE', 'SUPP']],
+  ['WATER', 'Water', 'DCEO', ['LEAK', 'WTR']],
+  ['IT', 'Server & IT', 'DCO', ['RACK', 'NET']],
+];
+const GROUP_OF = {}; GROUPS.forEach(([g, , , cs]) => cs.forEach(c => GROUP_OF[c] = g));
+const inGrp = id => !S.grp || GROUP_OF[P[id].cls] === S.grp;
+const grpName = g => (GROUPS.find(x => x[0] === g) || [])[1];
 const POWER = new Set(['GEN', 'ATS', 'SWGR', 'UPS', 'PDU']);
 const SEVR = { critical: 3, warning: 2, info: 1 };
-const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'cover', lin: null, linView: 'region', linMode: 'vendor' };
+const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'cover', grp: null, lin: null, linView: 'region', linMode: 'vendor' };
 try { const h = location.hash.slice(1); if (BLD.includes(h)) { S.b = h; S.view = 'building'; } else if (h && BLD.some(b => b.startsWith(h + '-'))) { S.b = BLD.find(b => b.startsWith(h + '-')); S.view = 'site'; } } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -647,7 +667,12 @@ for (let i = 0; i < 3; i++) R(`ATS-0${i + 1}`, 24 + i * 40, 172, 32, 20);
 for (let i = 0; i < 4; i++) R(`UPS-0${i + 1}`, 24 + i * 38, 216, 32, 44);
 for (let i = 0; i < 3; i++) R(`CH-0${i + 1}`, 194 + i * 50, 132, 42, 54);
 for (let i = 0; i < 4; i++) R(`PUMP-0${i + 1}`, 196 + i * 38, 226, 24, 24, 'circle');
-R('FIRE-01', 168, 290, 24, 14);
+R('FIRE-01', 112, 290, 40, 14); R('SUPP-01', 160, 290, 40, 14); R('SUPP-02', 208, 290, 40, 14);
+R('WTR-01', 196, 258, 40, 18);
+for (let r = 0; r < 4; r++) for (let j = 0; j < 2; j++) R(`RACK-${pad(2 * r + j + 1)}`, 100 + j * 82, 342 + r * 70, 78, 22);
+R('NET-01', 112, 316, 28, 14); R('NET-02', 220, 316, 28, 14);
+R('CDU-01', 104, 582, 30, 14); R('CDU-02', 226, 582, 30, 14);
+R('LEAK-01', 67, 448, 14, 14, 'circle'); R('LEAK-02', 279, 448, 14, 14, 'circle');
 for (let i = 0; i < 6; i++) { R(`CRAH-${pad(i + 1)}`, 22, 326 + i * 46, 22, 36); R(`CRAH-${pad(i + 7)}`, 316, 326 + i * 46, 22, 36); }
 for (let r = 0; r < 4; r++) { R(`PDU-${pad(2 * r + 1)}`, 60, 344 + r * 70, 28, 18); R(`PDU-${pad(2 * r + 2)}`, 272, 344 + r * 70, 28, 18); }
 const center = k => { const n = L[k]; return [n.x + n.w / 2, n.y + n.h / 2]; };
@@ -704,7 +729,7 @@ function buildingSVG(b, mini) {
   h += room(182, 114, 164, 172, '--room', 'MECHANICAL PLANT');
   h += glabel(24, 128, 'MV SWITCHGEAR') + glabel(24, 168, 'TRANSFER SWITCHES') + glabel(24, 212, 'UPS MODULES');
   h += glabel(194, 128, 'CHILLERS') + glabel(196, 222, 'CHW PUMPS');
-  h += `<text x="180" y="300" font-size="7" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="end" dx="-16">CORRIDOR</text>`;
+  h += `<text x="24" y="300" font-size="7" font-family="var(--font-mono)" fill="var(--ink-3)">CORRIDOR</text>`;
   h += `<path d="M14 286 h40 M66 286 h112 M182 286 h100 M294 286 h52" stroke="var(--line)" stroke-width="2"/>`;
   h += room(14, 310, 332, 296, '--hall', 'DATA HALL 1', 180, 600);
   h += `<path d="M14 310 h140 M206 310 h140" stroke="var(--line)" stroke-width="2"/>`;
@@ -712,9 +737,10 @@ function buildingSVG(b, mini) {
     const y = 340 + r * 70;
     h += `<rect x="98" y="${y}" width="164" height="26" fill="none" stroke="var(--line-soft)" stroke-width="1"/>`;
     for (let k = 1; k < 20; k++) h += `<line x1="${98 + k * 8.2}" y1="${y}" x2="${98 + k * 8.2}" y2="${y + 26}" stroke="var(--line-soft)" stroke-width=".5"/>`;
-    h += `<text x="180" y="${y + 16}" font-size="6.5" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="middle">RACK ROW ${String.fromCharCode(65 + r)}</text>`;
+    h += `<text x="94" y="${y + 16}" font-size="6" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="end">${String.fromCharCode(65 + r)}</text>`;
     if (r < 3) h += `<text x="180" y="${y + 50}" font-size="6" font-family="var(--font-mono)" fill="var(--ink-3)" text-anchor="middle" letter-spacing=".2em">${r % 2 ? 'HOT AISLE' : 'COLD AISLE'}</text>`;
   }
+  h += glabel(180, 327, 'NETWORK', 'middle') + glabel(100, 593, 'CDU', 'end') + glabel(260, 593, 'CDU') + glabel(74, 474, 'LEAK', 'middle') + glabel(286, 474, 'LEAK', 'middle') + glabel(240, 271, 'WATER TRT');
   h += glabel(33, 600, 'CRAH', 'middle') + glabel(327, 600, 'CRAH', 'middle') + glabel(74, 336, 'PDU', 'middle') + glabel(286, 336, 'PDU', 'middle');
 
   // links
@@ -739,8 +765,8 @@ function buildingSVG(b, mini) {
     const id = `${b}-${k}`, n = L[k];
     if (!P[id]) return;
     const [fill, ink] = fillFor(id);
-    const cls = 'node' + (id === selId ? ' sel' : '') + (hotSet && !hotSet.has(id) ? ' dim' : '');
-    const lab = k.split('-')[1];
+    const cls = 'node' + (id === selId ? ' sel' : '') + ((hotSet && !hotSet.has(id)) || !inGrp(id) ? ' dim' : '');
+    const lab = ({ RACK: 'RACK ', FIRE: 'FIRE ', SUPP: 'SUPR ' }[P[id].cls] || '') + k.split('-')[1];
     const shape = n.shape === 'circle'
       ? `<circle class="shape" cx="${n.x + n.w / 2}" cy="${n.y + n.h / 2}" r="${n.w / 2}" fill="${fill}"/>`
       : `<rect class="shape" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="2" fill="${fill}"/>`;
@@ -807,7 +833,7 @@ const lastLoc = a => a.mv.length ? D.sd[a.mv[a.mv.length - 1][3]] : null;
 function drawPlan() {
   const svg = $('plan');
   document.body.classList.toggle('oncover', S.view === 'cover');
-  renderWhere(); renderSummary();
+  renderWhere(); renderGroups(); renderSummary();
   if (S.view === 'cover') {
     const c = coverSVG();
     svg.setAttribute('viewBox', `0 0 360 ${c.h}`);
@@ -835,8 +861,8 @@ const SITES = [...new Set(BLD.map(b => b.slice(0, 2)))];
 const siteShort = s => (D.names[s] || s).replace(/^Nimbus /, '').replace(/ \(.*\)/, '');
 const siteState = s => ((D.names[s] || '').match(/\((.*)\)/) || [])[1] || '';
 const onHand = pre => Object.values(D.lineage).filter(a => { const l = lastLoc(a); return l && l.startsWith(pre); });
-const bldCount = (b, w) => bldIds(b).filter(id => worst(id) === w).length;
-const zoneWorst = (b, z) => (ZONES[`Z:${b}:${z}`] || { worst: 0 }).worst;
+const bldCount = (b, w) => bldIds(b).filter(id => inGrp(id) && worst(id) === w).length;
+const zoneWorst = (b, z) => ((ZONES[`Z:${b}:${z}`] || { members: [] }).members.filter(inGrp).reduce((m, id) => Math.max(m, worst(id)), 0));
 const SEVF = ['var(--seq0)', 'color-mix(in srgb, var(--info) 22%, var(--sheet))', 'color-mix(in srgb, var(--warn) 45%, var(--sheet))', 'color-mix(in srgb, var(--crit) 32%, var(--sheet))'];
 function coverSVG() {
   const t = (x, y, tx, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 7}" font-family="${o.ui ? 'var(--font-ui)' : 'var(--font-mono)'}" font-weight="${o.bold ? 700 : 400}" fill="${o.fill || 'var(--ink-3)'}" text-anchor="${o.a || 'start'}" letter-spacing="${o.ui ? 0 : '.05em'}">${esc(tx)}</text>`;
@@ -855,7 +881,7 @@ function coverSVG() {
       ${t(16, y + 40, 'OPERATING BUILDINGS', { size: 6.5 })}`;
     blds.forEach((b, i) => {
       const bx = 16 + (i % 2) * (BW + 8), by = y + 46 + Math.floor(i / 2) * (BH + 10), me = b === S.b;
-      const ids = bldIds(b), spend = ids.reduce((a, id) => a + P[id].k.spend, 0), open = ids.reduce((a, id) => a + P[id].k.open, 0);
+      const ids = bldIds(b).filter(inGrp), spend = ids.reduce((a, id) => a + P[id].k.spend, 0), open = ids.reduce((a, id) => a + P[id].k.open, 0);
       h += `<g class="cv-blk" data-bld="${b}"><rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="6" fill="var(--sheet)" stroke="${me ? 'var(--accent)' : 'var(--line)'}" stroke-width="${me ? 2.4 : 1.3}"/>
         ${t(bx + 9, by + 15, 'Building ' + b.slice(3), { ui: 1, bold: 1, size: 11, fill: 'var(--ink)' })}${badge(bx + BW - 8, by + 14, bldCount(b, 3), bldCount(b, 2))}
         ${me ? t(bx + 9, by + 25, 'LAST VIEWED', { size: 5.5, fill: 'var(--accent)' }) : ''}`;
@@ -882,6 +908,19 @@ function coverSVG() {
   }
   return { svg: h, h: y + 2 };
 }
+function renderGroups() {
+  const base = kpiScope(true).ids, n = g => base.filter(id => GROUP_OF[P[id].cls] === g).length;
+  const crit = g => base.filter(id => GROUP_OF[P[id].cls] === g && worst(id) === 3).length;
+  let h = `<button type="button" data-grp="" aria-pressed="${!S.grp}">All<small>${base.length} unit${base.length === 1 ? '' : 's'}</small></button>`, own = '';
+  GROUPS.forEach(([g, label, o]) => {
+    if (!n(g) && S.grp !== g) return;
+    if (o !== own) { h += `<span class="own">${o}</span>`; own = o; }
+    const c = crit(g);
+    h += `<button type="button" data-grp="${g}" aria-pressed="${S.grp === g}">${label}<small>${n(g)} unit${n(g) === 1 ? '' : 's'}${c ? ` · <span style="color:var(--crit)">! ${c}</span>` : ''}</small></button>`;
+  });
+  $('grpbar').innerHTML = h;
+}
+$('grpbar').addEventListener('click', e => { const b = e.target.closest('[data-grp]'); if (!b) return; S.grp = b.dataset.grp || null; renderAll(); try { renderSummary(); } catch (x) {} });
 function renderWhere() {
   const site = S.b.slice(0, 2), parts = [['cover', 'All sites']];
   if (S.view !== 'cover') parts.push(['site', siteShort(site)]);
@@ -904,20 +943,36 @@ function goView(view, b) {
   g.style.transition = 'transform .35s cubic-bezier(.3,.8,.3,1), opacity .35s'; g.style.transform = 'none'; g.style.opacity = 1;
 }
 function renderSummary() {
-  if (S.view !== 'cover') return;
-  const nb = BLD.length, srs = SITES.filter(s => D.stores[s + '-SR']), wh = !!D.stores['WH-CENTRAL'];
-  const fac = nb + srs.length + (wh ? 1 : 0), assets = Object.values(D.lineage), q = assets.filter(a => (lastLoc(a) || '').endsWith('QUARANTINE')).length;
-  const crit = PIDS.filter(id => worst(id) === 3).length, warn = PIDS.filter(id => worst(id) === 2).length;
-  const rank = BLD.map(b => [b, bldCount(b, 3), bldCount(b, 2)]).sort((a, c) => c[1] - a[1] || c[2] - a[2]);
-  const [tb, tc, tw] = rank[0], tf = D.findings.filter(f => f.id.startsWith(tb + '-')).sort((a, c) => SEVR[c.sev] - SEVR[a.sev])[0];
-  const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
-  const parts = [`${nb} operating building${nb === 1 ? '' : 's'}`]; if (srs.length) parts.push(`${srs.length} site storeroom${srs.length === 1 ? '' : 's'}`); if (wh) parts.push('the central warehouse');
-  $('aisum').innerHTML = `<div class="h">✦ Site summary<span>generated on-device · as of ${esc(D.asof)}</span></div>
-    Nimbus Data Centers: this view shows <b>${fac} facilities across ${SITES.length} site${SITES.length === 1 ? '' : 's'}</b> (${esc(list(SITES.map(s => siteShort(s) + (siteState(s) ? ', ' + siteState(s) : ''))))}): ${list(parts)}.
-    They hold <b>${num(PIDS.length)} tracked units</b> and ${num(assets.length)} spare assets${q ? `, ${q} in quarantine` : ''}.
-    ${tc || tw ? `${crit} critical and ${warn} warning findings in all. <button type="button" class="go" data-b="${tb}">Building ${tb}</button> needs attention first: ${tc ? tc + ' critical' : tw + ' warning'}${tf ? `, led by ${esc(tf.title.toLowerCase())} on ${esc(tf.id.split('-').slice(2).join('-'))}` : ''}.` : 'No open findings.'}`;
+  const sc = kpiScope(), ids = sc.ids, sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
+  const gname = S.grp ? grpName(S.grp) : '', gnote = S.grp ? ` · ${esc(gname)} only` : '';
+  const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
+  const fs = D.findings.filter(f => ids.includes(f.id)).sort((a, c) => SEVR[c.sev] - SEVR[a.sev]);
+  const tf = fs[0], list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  const pl = (n, w) => `${num(n)} ${w}${n === 1 ? '' : 's'}`;
+  const head = `<div class="h">✦ ${esc(sc.label)} summary${gnote}<span>generated on-device · as of ${esc(D.asof)}</span></div>`;
+  const issue = tf ? ` Top issue: <button type="button" class="go" data-unit="${tf.id}">${esc(titleOf(tf.id))}</button>, ${esc(tf.title.toLowerCase())} (${esc(tf.detail.replace(/\.$/, ''))}).` : '';
+  const money = `<b>${usd(sum(p => p.k.spend))}</b> spend, ${pl(sum(p => p.k.alarms90), 'alarm')} in the last 90 days and ${pl(sum(p => p.k.open), 'open work order')}`;
+  const fnd = `${pl(crit, 'critical finding')} and ${warn} warning`;
+  const mix = () => { const parts = GROUPS.map(([g, l]) => [l, ids.filter(id => GROUP_OF[P[id].cls] === g).length]).filter(x => x[1]); return parts.length > 1 ? ` across ${list(parts.map(([l, n]) => `${l} ${n}`))}` : ''; };
+  let body;
+  if (!ids.length) body = `No ${esc(gname)} units here.`;
+  else if (S.view === 'cover') {
+    const nb = BLD.length, srs = SITES.filter(x => D.stores[x + '-SR']), wh = !!D.stores['WH-CENTRAL'];
+    const fac = nb + srs.length + (wh ? 1 : 0), assets = Object.values(D.lineage);
+    const parts = [`${nb} operating building${nb === 1 ? '' : 's'}`]; if (srs.length) parts.push(`${srs.length} site storeroom${srs.length === 1 ? '' : 's'}`); if (wh) parts.push('the central warehouse');
+    body = `Nimbus Data Centers: <b>${fac} facilities across ${SITES.length} site${SITES.length === 1 ? '' : 's'}</b> (${esc(list(SITES.map(x => siteShort(x) + (siteState(x) ? ', ' + siteState(x) : ''))))}): ${list(parts)}.
+      They hold <b>${num(ids.length)} tracked ${S.grp ? esc(gname) + ' ' : ''}units</b>${mix()}, plus ${num(assets.length)} spare assets in stock and in transit.
+      ${money}. ${fnd}.${issue}`;
+  } else if (ids.length === 1) {
+    const id = ids[0], p = P[id], a = p.asset || {};
+    body = `<b>${esc(titleOf(id))}</b> is a ${esc(a.mfr || '')} ${esc(a.model || '')} ${esc((CLS[p.cls] || p.cls).toLowerCase())} (${esc(a.id || '')}) in the ${esc(ZNAME[ZONE_OF[p.cls]] || p.area)} of Building ${esc(id.slice(3, 5))}, ${esc(siteShort(id.slice(0, 2)))}, in service since ${esc(a.since || '—')}.
+      ${money}. ${tf ? `${tf.sev === 'critical' ? 'Critical' : 'Warning'}: ${esc(tf.title.toLowerCase())} (${esc(tf.detail.replace(/\.$/, ''))}).` : 'No open findings.'}`;
+  } else {
+    body = `<b>${esc(sc.label)}</b> has <b>${num(ids.length)} tracked ${S.grp ? esc(gname) + ' ' : ''}units</b>${mix()}. ${money}. ${fnd}.${issue}`;
+  }
+  $('aisum').innerHTML = head + body;
 }
-$('aisum').addEventListener('click', e => { const b = e.target.closest('.go'); if (b) goView('building', b.dataset.b); });
+$('aisum').addEventListener('click', e => { const b = e.target.closest('.go'); if (!b) return; const u = b.dataset.unit; if (CUR) closeDrill(); if (S.view !== 'building' || !u.startsWith(S.b)) goView('building', u.slice(0, 5)); S.tab = 'overview'; select(u); });
 function zoomTo(view, b) {
   const r = footRect(b || S.b);
   if (b) S.b = b;
@@ -930,7 +985,7 @@ function zoomTo(view, b) {
   g.style.transition = 'transform .45s cubic-bezier(.3,.8,.3,1), opacity .45s'; g.style.transform = 'none'; g.style.opacity = 1;
 }
 /* ---------- rooms (zones): rollup of the positions inside ---------- */
-const ZONE_OF = { GEN: 'yard', CT: 'yard', SWGR: 'elec', ATS: 'elec', UPS: 'elec', CH: 'mech', PUMP: 'mech', CRAH: 'hall', PDU: 'hall', FIRE: 'hall' };
+const ZONE_OF = { GEN: 'yard', CT: 'yard', SWGR: 'elec', ATS: 'elec', UPS: 'elec', CH: 'mech', PUMP: 'mech', WTR: 'mech', CRAH: 'hall', PDU: 'hall', FIRE: 'hall', SUPP: 'hall', CDU: 'hall', LEAK: 'hall', RACK: 'hall', NET: 'hall' };
 const ZNAME = { yard: 'Equipment yard', elec: 'Electrical room', mech: 'Mechanical plant', hall: 'Data hall 1' };
 const ZSHORT = { yard: 'YARD', elec: 'ELEC', mech: 'MECH', hall: 'HALL' };
 const ZONES = {};
@@ -1621,7 +1676,11 @@ function renderTiles() {
 }
 $('tiles').addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) goBuilding(t.dataset.b); });
 /* v10.7: the KPI boxes follow the drill: all sites › site › building › room › unit */
-function kpiScope() {
+function kpiScope(raw) {
+  const sc = kpiScope0();
+  return raw ? sc : { ...sc, ids: sc.ids.filter(inGrp) };
+}
+function kpiScope0() {
   if (S.view === 'cover') return { ids: PIDS, label: 'All sites' };
   if (S.view === 'site') { const st = S.b.slice(0, 2); return { ids: PIDS.filter(id => id.startsWith(st + '-')), label: siteShort(st) }; }
   if (CUR && NAV.length) {
@@ -1665,7 +1724,7 @@ function renderLegend() {
 }
 const sevtag = s => `<span class="sevtag ${s}">${s === 'critical' ? '! ' : s === 'warning' ? '▲ ' : 'i '}${s}</span>`;
 function renderFindings() {
-  const fs = D.findings.filter(f => f.id.startsWith(S.b)).sort((a, b) => SEVR[b.sev] - SEVR[a.sev]);
+  const fs = D.findings.filter(f => f.id.startsWith(S.b) && (!P[f.id] || inGrp(f.id))).sort((a, b) => SEVR[b.sev] - SEVR[a.sev]);
   $('findList').innerHTML = fs.length ? fs.map(f => `<button class="find" type="button" data-id="${f.id}">
       <span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span>
       <span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span class="id">${localKey(f.id)}</span></button>`).join('')
@@ -2104,7 +2163,7 @@ function setHint() { updateCrumbs(); }
 // breadcrumbs: building › unit/room › metric › … › details › lifecycle — every earlier hop is tappable
 function updateCrumbs() {
   const el = $('crumbs');
-  try { renderKpis(); renderWhere(); } catch (e) {}
+  try { renderKpis(); renderWhere(); renderGroups(); renderSummary(); } catch (e) {}
   if (!CUR || !NAV.length) { el.hidden = true; return; }
   const items = [{ label: NAV[0].id.replace(/^Z:/, '').slice(0, 5), act: 'root' }];
   NAV.forEach((v, i) => items.push({ label: v.m ? MTITLE[v.m] : titleOf(v.id), act: 'd' + i }));
