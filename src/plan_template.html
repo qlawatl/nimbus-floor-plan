@@ -103,7 +103,7 @@ body:not(.oncover) .aisum { display: none; }
 .drawing svg { display: block; width: 100%; height: auto; max-height: 78vh; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .zone { fill: transparent; cursor: pointer; }
 .zone.holding { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 2; }
-.tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tiles { display: none !important; grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .tile { background: var(--sheet); border: 1px solid var(--hair); border-radius: 10px; padding: 8px 9px 7px; cursor: pointer; display: grid; gap: 4px; text-align: left; min-width: 0; }
 .tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .tile .th { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 14px; }
@@ -308,8 +308,8 @@ body.has-snap .wrap { padding-top: 54px; }
 .pgwrap.from-l { transform: translateX(-28px); opacity: .25; transition: none; }
 @media (prefers-reduced-motion: reduce) { .pgwrap { transition: none; } }
 .tl-chart svg { touch-action: pan-y; cursor: ew-resize; }
-.ast { margin-top: 3px; font: 11.5px/1.35 var(--font-mono); color: var(--ink-3); }
-.ast b { color: var(--ink-2); font-weight: 600; }
+.tl .what div.ast { margin-top: 3px; font-family: var(--font-ui); font-size: 12.5px; color: var(--ink-2); }
+.ast b { color: var(--ink); font-weight: 700; }
 .astold { font: 10px var(--font-ui); color: var(--info); border: 1px solid currentColor; border-radius: 6px; padding: 0 4px; margin-left: 2px; }
 .rh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .pri { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 3px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
@@ -458,7 +458,7 @@ body.has-snap .wrap { padding-top: 54px; }
         <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
       </div>
-      <span class="chip">v10.5 · synthetic</span>
+      <span class="chip">v10.6 · synthetic</span>
       <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
     <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
@@ -2172,7 +2172,7 @@ function renderTable() {
   h += `<div class="tbl-tools"><input id="tblQ" type="search" placeholder="Filter rows" value="${esc(TB.q)}" aria-label="Filter rows">${TB.item ? `<button type="button" class="chip on" data-clear>${esc(groups.find(g => g.key === TB.item)?.label || TB.item)} ×</button>` : ''}${TB.mon ? `<button type="button" class="chip on" data-clearmon>${mlabel(TB.mon)} ×</button>` : ''}<span class="mut">${num(rows.length)} rows</span></div>
     <div class="tscroll"><table class="tg recs"><thead><tr>${cols.map(([l, i, kind]) => `<th data-sort="${i}" class="${kind === 'usd' || kind === 'num' ? 'r' : ''}">${l}${(TB.sort ?? 0) === i ? (TB.sort == null || TB.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>
     ${shown.map(({ pid, r }) => { const ent = m === 'alarms' ? r[5] : m === 'labor' ? r[4] : r[2];
-      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : kind === 'pri' || kind === 'po' ? 'pricell' : ''}">${kind === 'asset' ? (a => a ? `<b class="mono">${esc(a.aid)}</b><div class="mut">${esc(a.desc)}</div>` : '')(assetAt(pid, r[0])) : kind === 'pri' ? priPill(r[i]) : kind === 'po' ? poPills(r[6], r[7], r[8]) : esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
+      return `<tr data-pid="${pid}" data-ent="${esc(ent)}">${cols.map(([l, i, kind]) => `<td class="${kind === 'usd' || kind === 'num' ? 'r mono' : i === 0 ? 'mono' : kind === 'pri' || kind === 'po' ? 'pricell' : ''}">${kind === 'asset' ? (a => a ? `<b>${esc(a.aid)}</b><div class="mut">${esc(a.desc)}</div>` : '')(assetAt(pid, r[0])) : kind === 'pri' ? priPill(r[i]) : kind === 'po' ? poPills(r[6], r[7], r[8]) : esc(i === -1 ? titleOf(pid) : fmtCell(r[i], kind))}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
     ${rows.length > TB.shown ? `<button type="button" class="more" data-tmore>Load ${Math.min(PAGE, rows.length - TB.shown)} more · ${TB.shown} of ${rows.length} shown</button>` : `<div class="endnote">All ${rows.length} shown · tap a row to follow its lifecycle</div>`}`;
   $('tblBody').innerHTML = h;
 }
