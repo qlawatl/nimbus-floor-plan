@@ -2,6 +2,15 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.4 — 2026-11-09 · branch `release/v10.4`
+- **New cover page: every facility on one sheet.** The app now opens on a block plan of the whole portfolio. Each site is a block holding its **operating buildings** and its **support** facilities (storeroom, site map), with the shared **central warehouse** below:
+  - Each building block shows its critical/warning badge, a 2×2 grid of its rooms (yard, electrical, mechanical, data hall) shaded by their worst finding, spend, unit count and open work orders. The building you last opened is outlined and marked *Last viewed*.
+  - **Tap a building** to open its floor plan, **tap a site header or Site map ›** for that site's map, and **tap a storeroom or the warehouse** for what's on hand.
+- **Brand header:** Lumo mark and wordmark with a *Location Intelligence* tagline, plus a version chip. The long gesture help moved behind the **?** button.
+- **Site summary** at the top of the cover, written from the snapshot on the device (no network): how many facilities and sites are shown and of what kind, tracked units and spare assets, finding counts, and which building needs attention first, with a link straight to it.
+- **"You are here" breadcrumb** above the drawing on every view (*All sites › West 1 › Building B2*); tap any level to jump to it. The drawing's back button now goes up one level (building → site map → all sites), and a triple-tap returns to the cover.
+- On the cover, the KPIs cover the whole portfolio, and the building tiles, color/link controls, month bar and building findings are hidden until you drill in. Links like `#W1-B2` (building) and `#W1` (site map) still open straight to that view.
+
 ## v10.3 — 2026-11-09 · branch `release/v10.3`
 - **Time drill on the record timeline: all months → month → week → day.** In the details and records windows, tapping a bar now drills in rather than only filtering:
   - **Month** (`YYYY-MM`): the chart re-bins into that month's weeks.

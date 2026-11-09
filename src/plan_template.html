@@ -55,6 +55,33 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; }
 h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .01em; text-wrap: balance; }
 .sub { color: var(--ink-3); font-size: 13px; }
+/* v10.4 brand header + cover page */
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand .mark { width: 34px; height: 34px; flex: none; }
+.brand .wm { display: grid; line-height: 1.1; min-width: 0; }
+.brand .wm b { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+.brand .wm b i { font-style: normal; color: var(--accent); }
+.brand .wm span { font-size: 12.5px; color: var(--ink-3); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brandrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; }
+.chip { font: 11px var(--font-mono); color: var(--ink-3); border: 1px solid var(--line-soft); border-radius: 12px; padding: 2px 8px; white-space: nowrap; }
+details.help { font-size: 13px; color: var(--ink-3); }
+details.help summary { cursor: pointer; list-style: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-soft); display: grid; place-items: center; font-weight: 700; color: var(--ink-2); }
+details.help summary::-webkit-details-marker { display: none; }
+details.help[open] { width: 100%; order: 9; }
+details.help[open] summary { margin-bottom: 6px; }
+.aisum { grid-column: 1 / -1; background: var(--sheet); border: 1px solid var(--hair); border-left: 3px solid var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 14.5px; line-height: 1.45; }
+.aisum .h { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.aisum .h span { color: var(--ink-3); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.aisum b { font-weight: 700; }
+.aisum .go { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+#where { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
+#where button { border: 1px solid var(--line-soft); background: var(--sheet); color: var(--ink-2); border-radius: 14px; padding: 4px 10px; cursor: pointer; font: 600 13px var(--font-ui); }
+#where button[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+#where .sep { color: var(--ink-3); }
+.cv-blk { cursor: pointer; }
+.cv-blk:hover > rect:first-child { stroke-width: 2.4; }
+body.oncover .tiles, body.oncover .controls, body.oncover .timebar, body.oncover .legend, body.oncover #fcard, body.oncover .zoombtn { display: none !important; }
+body:not(.oncover) .aisum { display: none; }
 .seg { display: flex; gap: 0; border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden; background: var(--sheet); }
 .seg button { border: 0; background: none; padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
 .seg button + button { border-left: 1px solid var(--line-soft); }
@@ -423,18 +450,25 @@ body.has-snap .wrap { padding-top: 54px; }
 <body>
 <div class="wrap">
   <header>
-    <div>
-      <h1>Nimbus Site Floor Plan</h1>
-      <div class="sub">v10.3 · synthetic data · zoom out to the site map · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere for the main page · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel</div>
+    <div class="brandrow">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".35"/><circle cx="17" cy="17" r="10" fill="none" stroke="var(--accent)" stroke-width="1.8" opacity=".7"/><circle cx="17" cy="17" r="4.5" fill="var(--accent)"/><path d="M17 1.5v6M17 26.5v6M1.5 17h6M26.5 17h6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <div class="wm"><b>lum<i>o</i></b><span>Location Intelligence</span></div>
+      </div>
+      <span class="chip">v10.4 · synthetic</span>
+      <details class="help"><summary aria-label="How to use">?</summary>Tap a building on the cover to open its floor plan · tap a unit or room to burst · tap to drill in · double-tap to go back · hold for details (double-tap to close) · hold a unit on the drawing for its full panel · Lineage shows where an asset has been (Journey map, From vendor / Repair loop, ▶ Replay) · triple-tap anywhere to come back to this cover</details>
     </div>
+    <h1 class="vh" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Lumo · Nimbus site overview</h1>
     <div class="search">
       <input id="q" type="search" placeholder="Search unit, alarm code, vendor, technician" autocomplete="off" aria-label="Search">
       <div class="results" id="qres" hidden></div>
     </div>
   </header>
+  <section class="aisum" id="aisum" aria-label="Site summary"></section>
   <div class="tiles" id="tiles" role="group" aria-label="Building"></div>
 
   <div class="main">
+    <nav id="where" aria-label="You are here"></nav>
     <div class="kpis" id="kpis"></div>
     <div class="controls">
       <span>Color by</span>
@@ -454,7 +488,7 @@ body.has-snap .wrap { padding-top: 54px; }
       <div class="titleblock"><span id="tbName">—</span><span>DWG FP-01 · NOT TO SCALE</span></div>
     </div>
     <div class="legend" id="legend"></div>
-    <section class="card" aria-labelledby="fh"><h2 id="fh">Findings in this building</h2><div id="findList"></div></section>
+    <section class="card" id="fcard" aria-labelledby="fh"><h2 id="fh">Findings in this building</h2><div id="findList"></div></section>
     <section class="card" aria-labelledby="ph"><h2 id="ph">Portfolio findings · not tied to one position</h2><div id="portList"></div></section>
   </div>
 
@@ -583,8 +617,8 @@ const BLD = [...new Set(Object.keys(P).map(id => id.slice(0, 5)))].sort();
 const CLS = { SWGR: 'Switchgear', UPS: 'UPS', PDU: 'PDU', GEN: 'Generator', ATS: 'Transfer switch', CH: 'Chiller', CT: 'Cooling tower', CRAH: 'CRAH', PUMP: 'CHW pump', FIRE: 'Fire detection', BRKR: 'Breaker element', VFD: 'VFD drive' };
 const POWER = new Set(['GEN', 'ATS', 'SWGR', 'UPS', 'PDU']);
 const SEVR = { critical: 3, warning: 2, info: 1 };
-const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'building', lin: null, linView: 'region', linMode: 'vendor' };
-try { const h = location.hash.slice(1); if (BLD.includes(h)) S.b = h; } catch (e) {}
+const S = { b: 'E1-B1', metric: 'health', links: 'off', sel: null, tab: 'overview', month: null, view: 'cover', lin: null, linView: 'region', linMode: 'vendor' };
+try { const h = location.hash.slice(1); if (BLD.includes(h)) { S.b = h; S.view = 'building'; } else if (h && BLD.some(b => b.startsWith(h + '-'))) { S.b = BLD.find(b => b.startsWith(h + '-')); S.view = 'site'; } } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = id => document.getElementById(id);
@@ -767,6 +801,17 @@ function siteSVG(site) {
 const lastLoc = a => a.mv.length ? D.sd[a.mv[a.mv.length - 1][3]] : null;
 function drawPlan() {
   const svg = $('plan');
+  document.body.classList.toggle('oncover', S.view === 'cover');
+  renderWhere(); renderSummary();
+  if (S.view === 'cover') {
+    const c = coverSVG();
+    svg.setAttribute('viewBox', `0 0 360 ${c.h}`);
+    svg.setAttribute('aria-label', 'Portfolio overview: sites, operating buildings and storerooms');
+    svg.innerHTML = `<g class="view">${c.svg}</g>`;
+    $('tbName').textContent = 'All sites · overview';
+    return;
+  }
+  svg.setAttribute('aria-label', 'Building floor plan');
   if (S.view === 'site') {
     const site = S.b.slice(0, 2);
     const jr = S.lin && S.linView === 'region';
@@ -778,8 +823,94 @@ function drawPlan() {
     svg.innerHTML = `<g class="view">${buildingSVG(S.b)}</g>`;
     $('tbName').textContent = D.names[S.b] || S.b;
   }
-  $('zoomBtn').textContent = S.view === 'site' ? 'Zoom in: building ›' : '‹ Zoom out: site map';
+  $('zoomBtn').textContent = S.view === 'site' ? '‹ All sites' : '‹ Site map';
 }
+/* ---------- v10.4 cover: every facility on one sheet ---------- */
+const SITES = [...new Set(BLD.map(b => b.slice(0, 2)))];
+const siteShort = s => (D.names[s] || s).replace(/^Nimbus /, '').replace(/ \(.*\)/, '');
+const siteState = s => ((D.names[s] || '').match(/\((.*)\)/) || [])[1] || '';
+const onHand = pre => Object.values(D.lineage).filter(a => { const l = lastLoc(a); return l && l.startsWith(pre); });
+const bldCount = (b, w) => bldIds(b).filter(id => worst(id) === w).length;
+const zoneWorst = (b, z) => (ZONES[`Z:${b}:${z}`] || { worst: 0 }).worst;
+const SEVF = ['var(--seq0)', 'color-mix(in srgb, var(--info) 22%, var(--sheet))', 'color-mix(in srgb, var(--warn) 45%, var(--sheet))', 'color-mix(in srgb, var(--crit) 32%, var(--sheet))'];
+function coverSVG() {
+  const t = (x, y, tx, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 7}" font-family="${o.ui ? 'var(--font-ui)' : 'var(--font-mono)'}" font-weight="${o.bold ? 700 : 400}" fill="${o.fill || 'var(--ink-3)'}" text-anchor="${o.a || 'start'}" letter-spacing="${o.ui ? 0 : '.05em'}">${esc(tx)}</text>`;
+  const badge = (x, y, c, w) => c ? `<rect x="${x - 22}" y="${y - 9}" width="22" height="13" rx="6.5" fill="var(--crit)"/>${t(x - 11, y, '! ' + c, { a: 'middle', fill: '#fff', size: 7.5 })}`
+    : w ? `<rect x="${x - 22}" y="${y - 9}" width="22" height="13" rx="6.5" fill="var(--warn)"/>${t(x - 11, y, '▲ ' + w, { a: 'middle', fill: '#0b0b0b', size: 7.5 })}` : t(x, y, 'OK', { a: 'end', fill: 'var(--good)', size: 7 });
+  let h = '', y = 6;
+  const BW = 160, BH = 92;
+  SITES.forEach(site => {
+    const blds = BLD.filter(b => b.startsWith(site + '-')), rows = Math.ceil(blds.length / 2);
+    const H = 44 + rows * (BH + 10) + 56;
+    const sc = blds.reduce((a, b) => a + bldCount(b, 3), 0), sw = blds.reduce((a, b) => a + bldCount(b, 2), 0);
+    h += `<g><rect x="6" y="${y}" width="348" height="${H}" rx="10" fill="var(--yard)" stroke="var(--line)" stroke-width="1.3" stroke-dasharray="6 3"/>
+      <g class="cv-blk" data-site="${site}"><rect x="6" y="${y}" width="348" height="30" rx="10" fill="transparent"/>
+      ${t(16, y + 19, siteShort(site), { ui: 1, bold: 1, size: 13, fill: 'var(--ink)' })}${t(16 + siteShort(site).length * 7 + 8, y + 19, siteState(site).toUpperCase(), { size: 7 })}
+      ${t(344, y + 19, `${sc ? sc + ' crit · ' : ''}${sw ? sw + ' warn · ' : ''}site map ›`, { a: 'end', size: 7.5, fill: sc ? 'var(--crit)' : 'var(--ink-2)' })}</g>
+      ${t(16, y + 40, 'OPERATING BUILDINGS', { size: 6.5 })}`;
+    blds.forEach((b, i) => {
+      const bx = 16 + (i % 2) * (BW + 8), by = y + 46 + Math.floor(i / 2) * (BH + 10), me = b === S.b;
+      const ids = bldIds(b), spend = ids.reduce((a, id) => a + P[id].k.spend, 0), open = ids.reduce((a, id) => a + P[id].k.open, 0);
+      h += `<g class="cv-blk" data-bld="${b}"><rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="6" fill="var(--sheet)" stroke="${me ? 'var(--accent)' : 'var(--line)'}" stroke-width="${me ? 2.4 : 1.3}"/>
+        ${t(bx + 9, by + 15, 'Building ' + b.slice(3), { ui: 1, bold: 1, size: 11, fill: 'var(--ink)' })}${badge(bx + BW - 8, by + 14, bldCount(b, 3), bldCount(b, 2))}
+        ${me ? t(bx + 9, by + 25, 'LAST VIEWED', { size: 5.5, fill: 'var(--accent)' }) : ''}`;
+      Object.keys(ZNAME).forEach((z, j) => {
+        const zx = bx + 9 + (j % 2) * 72, zy = by + 29 + Math.floor(j / 2) * 22, w = zoneWorst(b, z);
+        h += `<rect x="${zx}" y="${zy}" width="69" height="19" rx="2.5" fill="${SEVF[w]}" stroke="var(--line-soft)" stroke-width=".7"/>${t(zx + 5, zy + 12.5, ZSHORT[z] + (w === 3 ? ' !' : w === 2 ? ' ▲' : ''), { size: 6.5, fill: 'var(--ink-2)' })}`;
+      });
+      h += `${t(bx + 9, by + BH - 7, usd(spend), { size: 7.5, fill: 'var(--ink-2)', bold: 1 })}${t(bx + BW - 9, by + BH - 7, `${ids.length} units · ${open} open WO`, { a: 'end', size: 6 })}</g>`;
+    });
+    const sy = y + 46 + rows * (BH + 10) + 2, sr = site + '-SR', items = onHand(sr), q = items.filter(a => lastLoc(a).endsWith('QUARANTINE')).length;
+    h += t(16, sy + 2, 'SUPPORT', { size: 6.5 }) + `<g class="cv-blk" data-store="${sr}"><rect x="16" y="${sy + 7}" width="${BW}" height="38" rx="6" fill="var(--sheet)" stroke="var(--line)" stroke-width="1.3"/>
+      ${t(25, sy + 22, 'Storeroom', { ui: 1, bold: 1, size: 10, fill: 'var(--ink)' })}${t(25, sy + 36, `${items.length} on hand${q ? ' · ' + q + ' quarantined' : ''}`, { size: 6.5, fill: q ? 'var(--crit)' : 'var(--ink-3)' })}`;
+    for (let k = 0; k < 6; k++) h += `<rect x="${16 + BW - 52 + (k % 3) * 14}" y="${sy + 14 + Math.floor(k / 3) * 12}" width="11" height="9" rx="1.5" fill="var(--seq0)" stroke="var(--line-soft)" stroke-width=".6"/>`;
+    h += `</g><g class="cv-blk" data-site="${site}"><rect x="${16 + BW + 8}" y="${sy + 7}" width="${BW}" height="38" rx="6" fill="var(--paper)" stroke="var(--line-soft)" stroke-dasharray="3 2"/>
+      ${t(25 + BW + 8, sy + 22, 'Site map ›', { ui: 1, bold: 1, size: 10, fill: 'var(--accent)' })}${t(25 + BW + 8, sy + 36, 'yard, dock, gate, layout', { size: 6.5 })}</g></g>`;
+    y += H + 10;
+  });
+  if (D.stores['WH-CENTRAL']) {
+    const n = onHand('WH-CENTRAL').length;
+    h += `<g class="cv-blk" data-store="WH-CENTRAL"><rect x="6" y="${y}" width="348" height="40" rx="8" fill="var(--sheet)" stroke="var(--line)" stroke-width="1.3"/>
+      ${t(16, y + 17, 'Central warehouse', { ui: 1, bold: 1, size: 10.5, fill: 'var(--ink)' })}${t(16, y + 31, `SHARED · RESTOCKS ${SITES.map(siteShort).join(' + ').toUpperCase()}`, { size: 6.5 })}
+      ${t(344, y + 24, `${n} on hand ›`, { a: 'end', size: 7.5, fill: 'var(--ink-2)' })}</g>`;
+    y += 46;
+  }
+  return { svg: h, h: y + 2 };
+}
+function renderWhere() {
+  const site = S.b.slice(0, 2), parts = [['cover', 'All sites']];
+  if (S.view !== 'cover') parts.push(['site', siteShort(site)]);
+  if (S.view === 'building') parts.push(['building', 'Building ' + S.b.slice(3)]);
+  $('where').innerHTML = parts.map(([v, l], i) => `${i ? '<span class="sep">›</span>' : ''}<button type="button" data-go="${v}"${i === parts.length - 1 ? ' aria-current="page"' : ''}>${esc(l)}</button>`).join('');
+}
+$('where').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b && b.getAttribute('aria-current') !== 'page') goView(b.dataset.go); });
+function goView(view, b) {
+  if (b) S.b = b;
+  if (view === 'cover') { stopReplay(); S.lin = null; if (S.sel) closePanel(true); }
+  if (view === 'building' && S.sel && !S.sel.startsWith(S.b)) closePanel(true);
+  S.view = view;
+  try { history.replaceState(null, '', view === 'cover' ? location.pathname + location.search : '#' + (view === 'site' ? S.b.slice(0, 2) : S.b)); } catch (e) {}
+  renderAll();
+  const g = $('plan').querySelector('.view');
+  g.style.transition = 'none'; g.style.transformOrigin = '50% 30%'; g.style.transform = view === 'cover' ? 'scale(1.06)' : 'scale(.94)'; g.style.opacity = .2;
+  g.getBoundingClientRect();
+  g.style.transition = 'transform .35s cubic-bezier(.3,.8,.3,1), opacity .35s'; g.style.transform = 'none'; g.style.opacity = 1;
+}
+function renderSummary() {
+  if (S.view !== 'cover') return;
+  const nb = BLD.length, srs = SITES.filter(s => D.stores[s + '-SR']), wh = !!D.stores['WH-CENTRAL'];
+  const fac = nb + srs.length + (wh ? 1 : 0), assets = Object.values(D.lineage), q = assets.filter(a => (lastLoc(a) || '').endsWith('QUARANTINE')).length;
+  const crit = PIDS.filter(id => worst(id) === 3).length, warn = PIDS.filter(id => worst(id) === 2).length;
+  const rank = BLD.map(b => [b, bldCount(b, 3), bldCount(b, 2)]).sort((a, c) => c[1] - a[1] || c[2] - a[2]);
+  const [tb, tc, tw] = rank[0], tf = D.findings.filter(f => f.id.startsWith(tb + '-')).sort((a, c) => SEVR[c.sev] - SEVR[a.sev])[0];
+  const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  const parts = [`${nb} operating building${nb === 1 ? '' : 's'}`]; if (srs.length) parts.push(`${srs.length} site storeroom${srs.length === 1 ? '' : 's'}`); if (wh) parts.push('the central warehouse');
+  $('aisum').innerHTML = `<div class="h">✦ Site summary<span>generated on-device · as of ${esc(D.asof)}</span></div>
+    Nimbus Data Centers: this view shows <b>${fac} facilities across ${SITES.length} site${SITES.length === 1 ? '' : 's'}</b> (${esc(list(SITES.map(s => siteShort(s) + (siteState(s) ? ', ' + siteState(s) : ''))))}): ${list(parts)}.
+    They hold <b>${num(PIDS.length)} tracked units</b> and ${num(assets.length)} spare assets${q ? `, ${q} in quarantine` : ''}.
+    ${tc || tw ? `${crit} critical and ${warn} warning findings in all. <button type="button" class="go" data-b="${tb}">Building ${tb}</button> needs attention first: ${tc ? tc + ' critical' : tw + ' warning'}${tf ? `, led by ${esc(tf.title.toLowerCase())} on ${esc(tf.id.split('-').slice(2).join('-'))}` : ''}.` : 'No open findings.'}`;
+}
+$('aisum').addEventListener('click', e => { const b = e.target.closest('.go'); if (b) goView('building', b.dataset.b); });
 function zoomTo(view, b) {
   const r = footRect(b || S.b);
   if (b) S.b = b;
@@ -1452,7 +1583,7 @@ function renderControls() {
   seg($('metricSeg'), Object.entries(METRICS()).map(([k, m]) => [k, m.label]), S.metric, v => { S.metric = v; renderAll(); });
   seg($('linkSeg'), [['off', 'Off'], ['power', 'Power'], ['cool', 'Cooling'], ['all', 'All']], S.links, v => { S.links = v; renderAll(); });
 }
-function goBuilding(v) { S.b = v; if (S.sel && !S.sel.startsWith(v)) closePanel(true); try { history.replaceState(null, '', '#' + v); } catch (e) {} renderAll(); }
+function goBuilding(v) { S.b = v; if (S.view === 'cover') S.view = 'building'; if (S.sel && !S.sel.startsWith(v)) closePanel(true); try { history.replaceState(null, '', '#' + v); } catch (e) {} renderAll(); }
 function renderTiles() {
   $('tiles').innerHTML = BLD.map(b => {
     const ids = bldIds(b), c = ids.filter(id => worst(id) === 3).length, wn = ids.filter(id => worst(id) === 2).length;
@@ -1467,7 +1598,7 @@ function renderTiles() {
 }
 $('tiles').addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) goBuilding(t.dataset.b); });
 function renderKpis() {
-  const ids = bldIds(S.b), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
+  const ids = S.view === 'cover' ? PIDS : bldIds(S.b), sum = f => ids.reduce((a, id) => a + f(P[id]), 0);
   const crit = ids.filter(id => worst(id) === 3).length, warn = ids.filter(id => worst(id) === 2).length;
   const mo = S.month, ml = mo != null ? mlabel(M[mo]) : '';
   $('kpis').innerHTML = (mo == null ? [
@@ -1512,6 +1643,7 @@ $('findList').addEventListener('click', e => { const r = e.target.closest('.find
 const TABS = [['overview', 'Overview'], ['flow', 'Flow'], ['graph', 'Connections'], ['events', 'Activity']];
 function select(id) {
   S.sel = id;
+  if (S.view === 'cover') S.view = 'building';
   if (!id.startsWith(S.b)) S.b = id.slice(0, 5);
   renderAll();
   $('panel').classList.add('open'); $('scrim').classList.add('open');
@@ -2368,7 +2500,8 @@ function goHome() {
   updateCrumbs();
   $('qres').hidden = true;
   if (!$('linwin').hidden) { $('linwin').classList.remove('open'); $('linwin').hidden = true; }
-  stopReplay(); S.lin = null; S.view = 'building';
+  stopReplay(); S.lin = null; S.view = 'cover';
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   if (S.sel) closePanel(true);
   renderAll();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2394,9 +2527,10 @@ document.addEventListener('pointerup', e => {
 // plan: tap a unit or room = burst it · hold a unit = details panel
 gestures($('plan'), {
   hitAt: e => { const n = e.target.closest('.node'); if (n) return n.dataset.id; const z = e.target.closest('.zone'); if (z) return z.dataset.zone;
-    const bl = e.target.closest('[data-bld]'); if (bl) return 'BLD:' + bl.dataset.bld; const st = e.target.closest('[data-store]'); if (st) return 'STORE:' + st.dataset.store;
+    const bl = e.target.closest('[data-bld]'); if (bl) return 'BLD:' + bl.dataset.bld; const si = e.target.closest('[data-site]'); if (si) return 'SITE:' + si.dataset.site; const st = e.target.closest('[data-store]'); if (st) return 'STORE:' + st.dataset.store;
     const ls = e.target.closest('[data-step]'); return ls ? 'STEP:' + ls.dataset.step : null; },
-  tap: id => { if (!id) return; if (id.startsWith('BLD:')) return zoomTo('building', id.slice(4)); if (id.startsWith('STORE:')) return openStock(id.slice(6));
+  tap: id => { if (!id) return; if (id.startsWith('BLD:')) return S.view === 'cover' ? goView('building', id.slice(4)) : zoomTo('building', id.slice(4));
+    if (id.startsWith('SITE:')) { const s2 = id.slice(5); return goView('site', S.b.startsWith(s2) ? S.b : BLD.find(b => b.startsWith(s2 + '-'))); } if (id.startsWith('STORE:')) return openStock(id.slice(6));
     if (id.startsWith('STEP:')) return focusStep(+id.slice(5)); openNav(id); },
   canHold: id => id && !isZone(id) && !id.includes(':'),
   hold: id => { S.tab = 'overview'; select(id); },
@@ -2408,7 +2542,7 @@ gestures($('subwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeSub(),
 gestures($('linwin'), { hitAt: () => null, tap: () => {}, dbl: () => closeLineage(), stop: true });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && CUR && $('lcwin').hidden && $('subwin').hidden) { e.preventDefault(); navBack(); } });
 
-$('zoomBtn').onclick = () => zoomTo(S.view === 'site' ? 'building' : 'site');
+$('zoomBtn').onclick = () => S.view === 'site' ? goView('cover') : zoomTo('site');
 /* ---------- store-and-forward: snapshot banner + encrypted field-note outbox ---------- */
 const OBX_KEY = () => `nimbus.outbox.${SNAP.site}`;
 const nowLocal = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16).replace('T', ' '); };
