@@ -317,6 +317,7 @@ body.has-snap .wrap { padding-top: 54px; }
 .pgwrap.from-l { transform: translateX(-28px); opacity: .25; transition: none; }
 @media (prefers-reduced-motion: reduce) { .pgwrap { transition: none; } }
 .tl-chart svg { touch-action: pan-y; cursor: ew-resize; }
+.tl-chart, .tl-chart * { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
 .tl .what div.ast { margin-top: 3px; font-family: var(--font-ui); font-size: 12.5px; color: var(--ink-2); }
 .ast b { color: var(--ink); font-weight: 700; }
 .astold { font: 10px var(--font-ui); color: var(--info); border: 1px solid currentColor; border-radius: 6px; padding: 0 4px; margin-left: 2px; }
@@ -457,6 +458,39 @@ body.has-snap .wrap { padding-top: 54px; }
 .gnode { cursor: pointer; }
 .gnode:hover rect { stroke-width: 2.4; }
 .note { font-size: 12px; color: var(--ink-3); }
+/* ---- liquid layout: phone → tablet → desktop → wide ---- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-x: hidden; }
+img, svg, canvas, video { max-width: 100%; }
+h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
+.wrap { max-width: min(1680px, 100%); padding: clamp(10px, 2vw, 24px) max(clamp(12px, 2.4vw, 32px), env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(clamp(12px, 2.4vw, 32px), env(safe-area-inset-left)); gap: clamp(10px, 1.6vw, 18px); }
+@media (min-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr) clamp(340px, 32vw, 520px); } }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(min(100%, 92px), 1fr)); }
+.kpi span { white-space: normal; }
+.tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+.linsum { grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr)); }
+.search { flex: 1 1 220px; max-width: min(460px, 100%); }
+.drawing svg { max-height: min(78vh, 78dvh); }
+.tg { max-width: 100%; }
+/* floating windows: never wider than the screen, centred on tablets */
+.peek { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); }
+@media (min-width: 600px) and (max-width: 899px) {
+  .peek { left: 50%; right: auto; width: min(560px, calc(100vw - 24px)); margin-left: 0; transform: translate(-50%, 16px) scale(.97); }
+  .peek.on { transform: translateX(-50%); }
+  .subwin, .panel { left: 50%; right: auto; width: min(680px, 100%); margin-left: 0; }
+  .subwin { transform: translate(-50%, 30px); }
+  .subwin.open { transform: translateX(-50%); }
+  .panel { transform: translate(-50%, 105%); }
+  .panel.open { transform: translateX(-50%); }
+}
+@media (min-width: 900px) {
+  .peek { left: 50%; right: auto; bottom: 24px; width: min(520px, calc(100vw - 32px)); margin-left: calc(min(520px, 100vw - 32px) / -2); }
+  .subwin { width: min(640px, calc(100vw - 32px)); }
+}
+@media (max-width: 899px) { .subwin, .panel { max-height: min(88%, 88dvh); } }
+.tblbody { max-width: min(1200px, 100%); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+@media (hover: none) and (pointer: coarse) { .tbtn, .x, .controls .seg button { min-height: 40px; } }
+@media (max-width: 380px) { .controls { gap: 6px 8px; } }
 </style>
 </head>
 <body>
@@ -915,7 +949,6 @@ function renderGroups() {
   let h = `<button type="button" data-grp="" aria-pressed="${!S.grp}">All<small>${base.length} unit${base.length === 1 ? '' : 's'}</small></button>`, own = '';
   GROUPS.forEach(([g, label, o]) => {
     if (!n(g) && S.grp !== g) return;
-    if (o !== own) { h += `<span class="own">${o}</span>`; own = o; }
     const c = crit(g);
     h += `<button type="button" data-grp="${g}" aria-pressed="${S.grp === g}">${label}<small>${n(g)} unit${n(g) === 1 ? '' : 's'}${c ? ` · <span style="color:var(--crit)">! ${c}</span>` : ''}</small></button>`;
   });
@@ -1340,6 +1373,8 @@ const scrubEnd = () => { if (SCRUB.on && SCRUB.moved) SCRUB.until = Date.now() +
 document.addEventListener('pointerup', scrubEnd, true); document.addEventListener('pointercancel', scrubEnd, true);
 // a scrub ends where the finger lifts; the tap that would follow must not toggle that month off again
 document.addEventListener('click', e => { if (Date.now() < SCRUB.until && e.target.closest && e.target.closest('.tl-chart')) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+document.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('.tl-chart')) e.preventDefault(); }, true);
+document.addEventListener('mousedown', e => { if (e.button === 0 && e.target.closest && e.target.closest('.tl-chart')) e.preventDefault(); }, true);
 document.addEventListener('pointerover', tlHover, true);
 document.addEventListener('pointermove', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
 document.addEventListener('pointerdown', e => { if (e.target.closest && e.target.closest('.tl-chart')) tlHover(e); }, true);
