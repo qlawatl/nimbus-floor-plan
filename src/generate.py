@@ -97,6 +97,53 @@ CLASSES = {
    pm_txt="Quarterly fire detection PM: VESDA sensitivity test, panel battery check",
    alarms=[("FIRE_VESDA_ALERT", "major", ["VESDA alert level", "Smoke detected - alert"],
             ["VESDA alert - investigate source, replace filter", "Smoke alert in data hall, inspect and reset detector"])]),
+ # v10.8: classes added so every DCEO/DCO asset group has units (cooling, fire, water, IT)
+ "CDU": dict(n=2, area="Data Hall", system="Liquid Cooling", pm=90, rate=0.03, cost=4500,
+   vendors=["Polar HVAC Partners"], mfr=[("Vertiv", "CoolChip CDU 1350"), ("CoolIT", "CHx750")],
+   pm_txt="Quarterly CDU PM: coolant quality test, strainer clean, pump check",
+   alarms=[("CDU_LOW_FLOW", "major", ["Low secondary coolant flow", "TCS flow below setpoint"],
+            ["Low coolant flow - clean strainer and check pumps", "Secondary loop flow low, bleed air and verify valves"]),
+           ("CDU_LEAK", "critical", ["Coolant leak detected", "CDU drip tray leak alarm"],
+            ["Coolant leak at CDU - isolate loop and replace fitting", "Leak detected in CDU, repair quick-disconnect"]),
+           ("CDU_PUMP_FAIL", "major", ["CDU pump failure", "Redundant pump lost"],
+            ["Replace failed CDU pump", "CDU pump fault, swap pump module"])]),
+ "SUPP": dict(n=2, area="Life Safety", system="Fire Suppression", pm=180, rate=0.006, cost=2500,
+   vendors=["Sentinel Fire Protection"], mfr=[("Fike", "ECARO-25"), ("Viking", "Preaction VK")],
+   pm_txt="Semi-annual suppression PM: agent weight check, valve trip test",
+   alarms=[("SUPP_LOW_PRESS", "major", ["Low supervisory pressure", "Agent cylinder pressure low"],
+            ["Low supervisory air - find and repair leak", "Agent pressure low, recharge cylinder"]),
+           ("SUPP_PANEL_TRBL", "minor", ["Releasing panel trouble", "Panel supervisory fault"],
+            ["Clear releasing panel trouble, replace module", "Panel trouble - check wiring and reset"])]),
+ "LEAK": dict(n=2, area="Data Hall", system="Leak Detection", pm=180, rate=0.015, cost=900,
+   vendors=["AquaTreat Water Services"], mfr=[("RLE", "SeaHawk LD5200"), ("TTK", "FG-NET")],
+   pm_txt="Semi-annual leak detection PM: cable continuity test, zone walk",
+   alarms=[("LEAK_DETECTED", "critical", ["Water detected under floor", "Leak cable zone alarm"],
+            ["Water under floor - find source and dry out zone", "Leak alarm, traced to CHW valve packing, repaired"]),
+           ("LEAK_CABLE_FLT", "minor", ["Leak sensing cable break", "Cable continuity fault"],
+            ["Replace damaged leak sensing cable", "Cable break, splice and retest zone"])]),
+ "WTR": dict(n=1, area="Mechanical", system="Water Treatment", pm=30, rate=0.02, cost=2200,
+   vendors=["AquaTreat Water Services"], mfr=[("Nalco", "3D TRASAR"), ("ChemTreat", "CT-Controller")],
+   pm_txt="Monthly water treatment PM: conductivity calibration, chemical levels, legionella sample",
+   alarms=[("WTR_HIGH_COND", "major", ["High tower water conductivity", "Blowdown valve fault"],
+            ["High conductivity - repair blowdown valve", "Blowdown stuck closed, replace solenoid"]),
+           ("WTR_CHEM_LOW", "minor", ["Chemical tank low", "Inhibitor feed low"],
+            ["Refill treatment chemical, check feed pump", "Chemical feed pump lost prime, re-prime"])]),
+ "RACK": dict(n=8, area="Data Hall", system="IT Racks", pm=180, rate=0.03, cost=1200,
+   vendors=["Northwind IT Services"], mfr=[("Dell", "PowerEdge R760 rack"), ("Supermicro", "SYS-821GE GPU rack")],
+   pm_txt="Semi-annual rack PM: rail and cabling audit, thermal scan, firmware check",
+   alarms=[("RACK_INLET_TEMP", "major", ["Rack inlet temperature high", "Inlet above 27 C"],
+            ["High rack inlet temp - fix blanking and containment", "Hot spot at rack, rebalance perforated tiles"]),
+           ("RACK_PSU_FAIL", "major", ["Server PSU failure", "Redundant PSU lost"],
+            ["Replace failed server power supply", "PSU failed in rack, hot-swap unit"]),
+           ("RACK_DISK_FAIL", "minor", ["Drive failure", "RAID degraded"],
+            ["Replace failed drive and rebuild array", "Disk fault, swap drive"])]),
+ "NET": dict(n=2, area="Data Hall", system="Network", pm=180, rate=0.01, cost=2000,
+   vendors=["Northwind IT Services"], mfr=[("Arista", "7280R3"), ("Cisco", "Nexus 9300")],
+   pm_txt="Semi-annual network PM: optics clean, config backup, firmware review",
+   alarms=[("NET_LINK_DOWN", "major", ["Uplink down", "Port flapping on uplink"],
+            ["Uplink down - replace optic and patch", "Port flap, clean fibre and reseat optic"]),
+           ("NET_FAN_FAIL", "minor", ["Switch fan failure", "Fan tray fault"],
+            ["Replace switch fan tray", "Fan tray fault, swap tray"])]),
 }
 SEV_WO_P = {"critical": 0.9, "major": 0.55, "minor": 0.08, "warning": 0.03}
 RATE_SCALE = 3.0  # overall alarm volume
@@ -144,6 +191,10 @@ for s, (sname, state) in SITES.items():
             feeds += [(p("SWGR", 1 + (k > 2)), p("UPS", k)), (p("UPS", k), p("PDU", 2 * k - 1)), (p("UPS", k), p("PDU", 2 * k))]
             for j in range(3):
                 feeds.append((p("PUMP", k), p("CRAH", 3 * (k - 1) + j + 1)))
+        for k in range(1, 9):
+            feeds += [(p("PDU", k), p("RACK", k)), (p("CDU", 1 + (k > 4)), p("RACK", k))]
+        feeds += [(p("PUMP", 1), p("CDU", 1)), (p("PUMP", 2), p("CDU", 2))]
+        feeds += [(p("WTR", 1), p("CT", i)) for i in range(1, 4)]
 
 pos_df = pd.DataFrame(positions)
 leaf = pos_df[pos_df.level == "position"].reset_index(drop=True)

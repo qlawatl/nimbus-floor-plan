@@ -2,6 +2,15 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.8 — 2026-11-09 · branch `release/v10.8`
+- **Asset groups are now the top-level filters,** in a row of chips under the breadcrumb. Recommended split by owner:
+  - **DCEO (facility engineering):** **Electrical** (switchgear, generators, transfer switches, UPS, PDU, breaker elements) · **Mechanical** (chillers, cooling towers, CHW pumps, VFDs) · **Cooling** (CRAH, CDU liquid cooling) · **Fire** (detection, suppression) · **Water** (leak detection, water treatment)
+  - **DCO (IT operations):** **Server & IT** (server racks, network switches)
+  - Each chip shows its unit count and open critical findings for the current scope. Picking one filters the KPI boxes, findings, cover blocks and summary, and fades the other units on the floor plan.
+- **Synthetic data grew to cover every group.** Six new classes, each with its own alarms, PMs, vendors and work: **CDU** (2 per building), **fire suppression** (2), **leak detection** (2), **water treatment** (1), **server racks** (8, fed by PDUs and CDUs) and **network switches** (2). That gives 240 units (was 172) and 60,017 records (was 49,279). The dataset was regenerated: the injected stories (CH-02 alarm surge, UPS-03 swap, CRAH-07 fan belts, breaker and VFD repair loops) are unchanged, but totals and IDs differ from v10.7.
+- **Floor plan:** the rack rows now hold rack units 01–08, with network switches above row A, CDUs below row D, leak sensors in the hot aisle, fire detection and suppression in the corridor, and water treatment in the mechanical plant.
+- **Summary moved to the bottom of the page and appears on every view,** named for what you are looking at (*All sites summary*, *East 1 summary*, *Building B1 summary*, *Mechanical plant summary*, *CH-02 summary*), with the group mix, spend, alarms, open work and the top issue (tap to open it).
+
 ## v10.7 — 2026-11-09 · branch `release/v10.7`
 - **The KPI boxes now follow the drill-down.** Spend, alarms (90 days), open work orders and critical/warning findings are totals for whatever you are looking at: all sites → site → building → room → unit. Before, the site view showed only one building, and drilling into a room or unit left the building totals in place. The numbers fade in briefly when the scope changes.
 - **The breadcrumb includes the drill level** (*All sites › East 1 › Building B1 › CH-02*). Tap *Building B1* to close the drill.
