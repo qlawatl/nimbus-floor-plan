@@ -2,6 +2,11 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.5 — 2026-11-09 · branch `release/v10.5`
+- **Asset number and description on every detail record.** Work order, PO, invoice, alarm, alert and labor rows now show the asset under the record text, e.g. *A100022 · Carrier 19DV · Chiller*.
+  - The asset is the one **installed at that position on the record's date**, taken from the position history. After a swap, older records show the asset that was there at the time, with an *earlier asset* tag. For example, E1-B1-CRAH-07 shows the Stulz A100033 before 2026-06-03 and the Vertiv A100040 after.
+  - **Table view** gains a sortable **Asset** column (number and description), and the row filter matches asset number, tag, make and model.
+
 ## v10.4 — 2026-11-09 · branch `release/v10.4`
 - **New cover page: every facility on one sheet.** The app now opens on a block plan of the whole portfolio. Each site is a block holding its **operating buildings** and its **support** facilities (storeroom, site map), with the shared **central warehouse** below:
   - Each building block shows its critical/warning badge, a 2×2 grid of its rooms (yard, electrical, mechanical, data hall) shaded by their worst finding, spend, unit count and open work orders. The building you last opened is outlined and marked *Last viewed*.
