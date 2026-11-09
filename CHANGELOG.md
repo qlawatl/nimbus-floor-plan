@@ -2,6 +2,11 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.7 — 2026-11-09 · branch `release/v10.7`
+- **The KPI boxes now follow the drill-down.** Spend, alarms (90 days), open work orders and critical/warning findings are totals for whatever you are looking at: all sites → site → building → room → unit. Before, the site view showed only one building, and drilling into a room or unit left the building totals in place. The numbers fade in briefly when the scope changes.
+- **The breadcrumb includes the drill level** (*All sites › East 1 › Building B1 › CH-02*). Tap *Building B1* to close the drill.
+- **Shorter KPI labels so they stay on one line:** *Spend*, and findings shown as **1 / 1** with the label *Crit / warn*.
+
 ## v10.6 — 2026-11-09 · branch `release/v10.6`
 - **The asset line on records now uses the same font as the record text** (no more monospace). The asset number stays bold, as it does in the table view.
 - **Removed the building tiles row** (E1-B1 / E1-B2 / W1-B1 / W1-B2 with the sparkline and spend). To move between buildings, use the cover page and the *All sites › site › building* breadcrumb.
