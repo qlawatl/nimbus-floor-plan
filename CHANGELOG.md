@@ -2,6 +2,13 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.13 — 2026-11-09 · branch `release/v10.13`
+- **Landing and site views get a box pane on the right.** It shows All sites, then a site, building (with its rooms and units) or storeroom; hovering a box on the map previews it, and rows drill through.
+- **Record list popup:** hovering a bar filters the records below to that period (mouse); the popup keeps one size and position when filtered; × close button.
+- **Site map fills the center pane height** on desktop.
+- **Journey opens on the site map** (Journey map is still one tap away).
+- Hold a building, site or storeroom box to open it in the side pane (touch).
+
 ## v10.12 — 2026-11-09 · branch `release/v10.12`
 - **Four views:** site map, asset bubbles, record list with bar chart, journey window.
 - **Site and journey maps zoom and pan:** wheel, pinch or drag, plus + / − / ⟲ buttons.

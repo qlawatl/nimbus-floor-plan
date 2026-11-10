@@ -500,6 +500,24 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
   .peek.on { transform: none !important; }
   #subscrim, #lcscrim { display: none !important; }   /* no dimming: the center stays live while a popup is open */
 }
+/* landing / site view right pane: box + sub-boxes */
+.boxview { padding: 12px 14px 18px; overflow-y: auto; display: grid; gap: 10px; align-content: start; min-height: 0; flex: 1 1 auto; overscroll-behavior: contain; }
+.bxh h3 { margin: 0; font-size: 22px; } .bxh .crumb { color: var(--ink-3); font-size: 12.5px; }
+.bxrow, .bxz summary { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 9px 10px; cursor: pointer; }
+.bxrow { border: 1px solid var(--hair); border-radius: 8px; background: var(--sheet); font: inherit; color: inherit; }
+.bxrow:hover, .bxz:hover { border-color: var(--accent); }
+.bxsw { width: 16px; height: 16px; border-radius: 4px; background: var(--sev, var(--seq0)); border: 1px solid var(--line-soft); }
+.bxt b { display: block; font-size: 14px; } .bxt small { color: var(--ink-3); font-size: 12px; }
+.bxrow .go, .bxz .go { color: var(--accent); font-size: 12.5px; font-weight: 600; }
+details.bxz { border: 1px solid var(--hair); border-radius: 8px; background: var(--sheet); } details.bxz summary { list-style: none; } details.bxz summary::-webkit-details-marker { display: none; }
+details.bxz[open] summary { border-bottom: 1px solid var(--hair); }
+.bxunits { display: grid; gap: 2px; padding: 6px 8px 8px; }
+.bxunit { display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: center; border: 0; background: none; padding: 6px 4px; border-radius: 6px; cursor: pointer; text-align: left; font: inherit; color: inherit; } .bxunit:hover { background: var(--paper); } .bxunit small { color: var(--ink-3); }
+.bxbtns { display: grid; }
+/* list popup keeps one size and position whatever the filter leaves in it */
+.peek { height: 58%; } .peek .pk-b { overflow-y: auto; }
+@media (min-width: 900px) { .peek { height: auto !important; } }
+@media (max-width: 899px) { #subwin { height: min(88%, 88dvh); } }
 /* peek close button, journey slider */
 .pk-h { position: relative; padding-right: 48px; } .pk-x { position: absolute; top: 8px; right: 10px; }
 .linslide { display: grid; gap: 4px; margin: 4px 0 6px; } .linslide input { width: 100%; accent-color: var(--accent); }
@@ -511,6 +529,8 @@ body.zm-on .zmctl { display: flex; }
 .zmctl .tbtn { width: 34px; padding: 0; font-size: 17px; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
 .zmctl .tbtn:disabled { opacity: .45; cursor: default; }
 body.zm-on .drawing svg { touch-action: none; cursor: grab; }
+/* site map fills the center pane on desktop: no height cap, scaled to the window */
+@media (min-width: 900px) { body.zm-on .drawing svg { max-height: none; height: calc(100dvh - 150px); min-height: 520px; } }
 /* month play bar removed from the main page */
 .timebar { display: none !important; }
 .tblbody { max-width: min(1200px, 100%); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
@@ -573,6 +593,7 @@ body.zm-on .drawing svg { touch-action: none; cursor: grab; }
   <aside class="panel" id="panel" aria-label="Equipment detail">
     <div class="grab"></div>
     <div class="empty" id="empty">Select a piece of equipment on the drawing, or an insight, to see its details, alarm-to-invoice flow, connections and recent activity.</div>
+    <div id="boxview" class="boxview" hidden></div>
     <div id="detail" hidden>
       <div class="ph">
         <div class="ph-top">
@@ -1040,6 +1061,7 @@ function renderWhere() {
 function closeDrill() { if (!CUR) return; const g = CUR.g; NAV = []; CUR = null; closeBurst(g); setTable(false); updateCrumbs(); }
 $('where').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b || b.getAttribute('aria-current') === 'page') return; if (b.dataset.go === 'building' && CUR) return closeDrill(); closeDrill(); goView(b.dataset.go); });
 function goView(view, b) {
+  S.box = null; HB = null;
   if (b) S.b = b;
   if (view === 'cover') { stopReplay(); S.lin = null; if (S.sel) closePanel(true); }
   if (view === 'building' && S.sel && !S.sel.startsWith(S.b)) closePanel(true);
@@ -1428,6 +1450,20 @@ function tlHover(e) {
   chart.querySelectorAll('.tl-m.hov').forEach(x => x !== g && x.classList.remove('hov'));
   if (g && chart.contains(g)) { g.classList.add('hov'); read.textContent = g.dataset.tip; read.classList.add('live'); }
   else { read.textContent = read.dataset.default; read.classList.remove('live'); }
+  if (e.type === 'pointerleave' || e.pointerType === 'mouse') tlPreview(chart, g && chart.contains(g) ? g : null);
+}
+// mouse over a bar filters the records below to that period; moving off puts the committed (clicked) filter back
+function tlPreview(chart, g) {
+  const c = chart.closest('.peek, #swBody'), st = c && (c.id === 'swBody' ? SW.pg : c.__pgOf ? c.__pgOf.__pg : null); if (!st) return;
+  const hp = st.__hp || (st.__hp = { on: false, base: null });
+  if (g && !g.classList.contains('empty')) {
+    if (!hp.on) { hp.on = true; hp.base = st.sel; }
+    if (st.sel === g.dataset.mon) return;
+    st.sel = g.dataset.mon; st.rows = monRows(st); tlRedraw(c, st, null, false);
+  } else if (hp.on) {
+    hp.on = false;
+    if (st.sel !== hp.base) { st.sel = hp.base; st.rows = monRows(st); tlRedraw(c, st, null, false); }
+  }
 }
 // scrub: slide a finger (or drag the mouse) across the bars and the list follows month by month, like a carousel
 const SCRUB = { on: false, moved: false, until: 0, last: null };
@@ -1547,6 +1583,7 @@ function tlRedraw(container, st, prevSel, chartToo) {
 }
 // tap (drill) or slide (o.set: flip at the same level). Kept the name: the scrubber calls it.
 function monFilter(container, st, key, o = {}) {
+  if (st.__hp) st.__hp.on = false;   // a click or slide commits the filter: moving the mouse off must not undo it
   const prev = st.sel;
   if (key && !st.all.some(r => inKey(String(r[0]).slice(0, 10), key))) return o.quiet ? null : toast(`No records in ${keyLabel(key, true)}`);
   if (o.set) { if (key === prev) return; st.sel = key; st.rows = monRows(st); tlRedraw(container, st, prev, false); if (navigator.vibrate) try { navigator.vibrate(4); } catch (e) {} return; }
@@ -1558,6 +1595,7 @@ function monFilter(container, st, key, o = {}) {
   if (navigator.vibrate) try { navigator.vibrate(6); } catch (e) {}
 }
 function tlGo(container, st, key) {   // crumb: jump to that level ('' = all time)
+  if (st.__hp) st.__hp.on = false;
   st.sel = key || null; st.view = key ? (lvlOf(key) === 'day' ? parentKey(key) : key) : null; st.rows = monRows(st);
   tlRedraw(container, st, null, true);
   toast(key ? `${keyLabel(key, true)} · ${st.rows.length} records` : `All time · ${st.rows.length} records`);
@@ -1885,7 +1923,9 @@ $('scrim').onclick = () => closePanel();
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sel) closePanel(); });
 
 function renderPanel() {
-  const id = S.sel;
+  const id = S.sel, bx = S.view === 'cover' || S.view === 'site';
+  $('boxview').hidden = !bx;
+  if (bx) { $('empty').hidden = true; $('detail').hidden = true; renderBox(); return; }
   $('empty').hidden = !!id; $('detail').hidden = !id;
   if (!id) return;
   const p = P[id];
@@ -1900,6 +1940,79 @@ function renderPanel() {
 }
 $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.tab = b.dataset.t; renderPanel(); } });
 $('pbody').addEventListener('click', e => { const ln = e.target.closest('[data-lin]'); if (ln) return openLineage(ln.dataset.lin); const g = e.target.closest('[data-go]'); if (g) return select(g.dataset.go); const l = e.target.closest('li.lc[data-ent], .lcrow[data-ent]'); if (l) openLC(S.sel, l.dataset.ent); });
+
+/* ---------- right pane on the landing (all sites) and site views: the selected box and its sub-boxes ---------- */
+var HB = null, HBT = 0;   // box under the mouse (preview), and the timer that lets the mouse travel from the map to the pane
+const BOXKEY = el => !el ? null : el.dataset.bld ? { t: 'bld', id: el.dataset.bld } : el.dataset.store ? { t: el.dataset.store === 'WH-CENTRAL' ? 'wh' : 'store', id: el.dataset.store } : el.dataset.site ? { t: 'site', id: el.dataset.site } : null;
+const bxIds = b => (b.t === 'all' ? BLD : b.t === 'site' ? BLD.filter(x => x.startsWith(b.id + '-')) : [b.id]).flatMap(x => bldIds(x)).filter(inGrp);
+const bxStats = ids => { const sum = f => ids.reduce((a, id) => a + f(P[id]), 0); return { n: ids.length, crit: ids.filter(id => worst(id) === 3).length, warn: ids.filter(id => worst(id) === 2).length, spend: sum(p => p.k.spend), open: sum(p => p.k.open), al90: sum(p => p.k.alarms90) }; };
+const bxGrid = st => `<div class="grid4"><div class="stat"><b>${num(st.n)}</b><span>units</span></div><div class="stat"><b style="color:${st.crit ? 'var(--crit)' : 'inherit'}">${st.crit}</b><span>critical</span></div><div class="stat"><b>${st.warn}</b><span>warnings</span></div><div class="stat"><b>${usd(st.spend)}</b><span>spend</span></div><div class="stat"><b>${num(st.open)}</b><span>open WOs</span></div><div class="stat"><b>${num(st.al90)}</b><span>alarms · 90d</span></div></div>`;
+const bxMark = w => w === 3 ? ' !' : w === 2 ? ' ▲' : '';
+const bxRow = (key, title, sub, w) => `<button type="button" class="bxrow" data-box="${key}" style="--sev:${SEVF[w || 0]}"><span class="bxsw"></span><span class="bxt"><b>${esc(title)}${bxMark(w)}</b><small>${esc(sub)}</small></span><span class="go">›</span></button>`;
+const bxWorst = ids => ids.reduce((m, id) => Math.max(m, worst(id)), 0);
+function bxInsights(ids) {
+  const set = new Set(ids), fs = D.findings.filter(f => set.has(f.id)).sort((a, c) => SEVR[c.sev] - SEVR[a.sev]).slice(0, 4);
+  return fs.length ? `<div class="sect">Top insights</div>` + fs.map(f => `<button type="button" class="find" data-unit="${f.id}"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(titleOf(f.id))} · ${esc(f.detail)}</div></span><span></span></button>`).join('') : '';
+}
+function boxHTML(b) {
+  const ids = bxIds(b), st = bxStats(ids);
+  const head = (title, crumb) => `<div class="bxh"><h3>${esc(title)}</h3><div class="crumb">${esc(crumb)}</div></div>`;
+  const back = S.box ? `<button type="button" class="backbtn" data-reset>‹ Back</button>` : '';
+  const stockList = pre => Object.entries(D.lineage).filter(([, a]) => { const l = lastLoc(a); return l && l.startsWith(pre); });
+  if (b.t === 'all') {
+    return head('All sites', `${SITES.length} sites · ${BLD.length} buildings`) + bxGrid(st) + `<div class="sect">Sites</div>`
+      + SITES.map(x => { const sid = bxIds({ t: 'site', id: x }), ss = bxStats(sid); return bxRow('site:' + x, siteShort(x) + (siteState(x) ? ' · ' + siteState(x) : ''), `${BLD.filter(y => y.startsWith(x + '-')).length} buildings · ${num(ss.n)} units · ${usd(ss.spend)}`, bxWorst(sid)); }).join('')
+      + (D.stores['WH-CENTRAL'] ? bxRow('wh:WH-CENTRAL', 'Central warehouse', `${stockList('WH-CENTRAL').length} on hand · shared`, 0) : '') + bxInsights(ids);
+  }
+  if (b.t === 'site') {
+    const blds = BLD.filter(x => x.startsWith(b.id + '-')), sr = b.id + '-SR', n = stockList(sr).length;
+    return back + head(siteShort(b.id), siteState(b.id) || 'Site') + bxGrid(st) + `<div class="sect">Buildings</div>`
+      + blds.map(x => { const bi = bxIds({ t: 'bld', id: x }), bs = bxStats(bi); return bxRow('bld:' + x, 'Building ' + x.slice(3), `${num(bs.n)} units · ${num(bs.open)} open WO · ${usd(bs.spend)}`, bxWorst(bi)); }).join('')
+      + `<div class="sect">Support</div>` + bxRow('store:' + sr, 'Storeroom', `${n} on hand`, 0)
+      + `<div class="bxbtns"><button type="button" class="pk-open" data-open-site="${b.id}">Open site map ›</button></div>` + bxInsights(ids);
+  }
+  if (b.t === 'bld') {
+    const zones = Object.keys(ZNAME).map(z => {
+      const mem = ((ZONES[`Z:${b.id}:${z}`] || { members: [] }).members).filter(inGrp), w = bxWorst(mem), zs = bxStats(mem);
+      return `<details class="bxz" style="--sev:${SEVF[w]}"><summary><span class="bxsw"></span><span class="bxt"><b>${esc(ZNAME[z])}${bxMark(w)}</b><small>${mem.length} units · ${num(zs.open)} open WO · ${usd(zs.spend)}</small></span><span class="go">▾</span></summary>
+        <div class="bxunits">${mem.map(id => `<button type="button" class="bxunit" data-unit="${id}" style="--sev:${SEVF[worst(id)]}"><span class="bxsw"></span><span>${esc(titleOf(id))}${bxMark(worst(id))}</span><small>${esc(CLS[P[id].cls] || P[id].cls)}</small></button>`).join('') || '<div class="note">No units.</div>'}</div></details>`;
+    }).join('');
+    return back + head('Building ' + b.id.slice(3), siteShort(b.id.slice(0, 2))) + bxGrid(st) + `<div class="sect">Rooms</div>` + zones
+      + `<div class="bxbtns"><button type="button" class="pk-open" data-open-bld="${b.id}">Open floor plan ›</button></div>` + bxInsights(ids);
+  }
+  // storeroom / central warehouse
+  const items = stockList(b.id), q = items.filter(([, a]) => lastLoc(a).endsWith('QUARANTINE')).length;
+  return back + head(b.t === 'wh' ? 'Central warehouse' : 'Storeroom', b.t === 'wh' ? 'Shared · restocks every site' : siteShort(b.id.slice(0, 2)))
+    + `<div class="grid4"><div class="stat"><b>${items.length}</b><span>on hand</span></div><div class="stat"><b style="color:${q ? 'var(--crit)' : 'inherit'}">${q}</b><span>quarantined</span></div></div><div class="sect">On hand</div>`
+    + (items.slice(0, 14).map(([aid, a]) => `<button type="button" class="bxrow" data-lin="${aid}" style="--sev:${SEVF[0]}"><span class="bxsw"></span><span class="bxt"><b>${esc(a.tag)}</b><small>${esc(CLS[a.cls] || a.cls)} · ${esc(locName(lastLoc(a)))}</small></span><span class="go">Lineage ›</span></button>`).join('') || '<div class="note">Nothing on hand.</div>')
+    + `<div class="bxbtns"><button type="button" class="pk-open" data-open-store="${b.id}">Open stock list ›</button></div>`;
+}
+let BXLAST = '';
+function renderBox() {
+  const el = $('boxview'); if (el.hidden) return;
+  const base = S.box || (S.view === 'site' ? { t: 'site', id: S.b.slice(0, 2) } : { t: 'all', id: '' }), b = HB || base, k = b.t + ':' + b.id + ':' + S.view + ':' + (S.grp || '') + ':' + !!S.box;
+  if (k === BXLAST && el.innerHTML) return; BXLAST = k;
+  el.innerHTML = boxHTML(b); el.scrollTop = 0;
+}
+$('boxview').addEventListener('click', e => {
+  const T = e.target, bx = T.closest('[data-box]');
+  if (bx) { const [t, id] = bx.dataset.box.split(':'); S.box = { t, id }; HB = null; return renderBox(); }
+  if (T.closest('[data-reset]')) { S.box = null; HB = null; return renderBox(); }
+  const ob = T.closest('[data-open-bld]'); if (ob) return goView('building', ob.dataset.openBld);
+  const os = T.closest('[data-open-site]'); if (os) return goView('site', BLD.find(x => x.startsWith(os.dataset.openSite + '-')));
+  const st = T.closest('[data-open-store]'); if (st) return openStock(st.dataset.openStore);
+  const ln = T.closest('[data-lin]'); if (ln) return openLineage(ln.dataset.lin);
+  const u = T.closest('[data-unit]'); if (u) { const id = u.dataset.unit; if (CUR) closeDrill(); goView('building', id.slice(0, 5)); S.tab = 'overview'; select(id); }
+});
+// mouse: hovering a box on the map previews it in the pane; the pane keeps it while the mouse travels over to it
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse' || !(S.view === 'cover' || S.view === 'site')) return;
+  const el = e.target.closest && e.target.closest('#plan [data-bld], #plan [data-store], #plan [data-site]'), k = BOXKEY(el);
+  clearTimeout(HBT);
+  if (k) { if (!HB || HB.t !== k.t || HB.id !== k.id) { HB = k; renderBox(); } }
+  else if (HB && !(e.target.closest && e.target.closest('#boxview'))) HBT = setTimeout(() => { HB = null; renderBox(); }, 350);
+});
+$('boxview').addEventListener('pointerleave', () => { if (HB) { HB = null; renderBox(); } });
 
 function overview(id, p) {
   const k = p.k, fs = findBy[id] || [];
@@ -2608,7 +2721,7 @@ function openLineage(aid) { opened();
   if (!$('lcwin').hidden) closeLC(); if (!$('subwin').hidden) closeSub(); if (!$('tblwin').hidden) setTable(false); if (S.sel) closePanel(true);
   const st = linSteps(aid), cur = st[st.length - 1], six = locAt(st, SIX_MO);
   const curSite = (P[cur.to] ? cur.to : cur.to.startsWith('E1') || cur.to.startsWith('W1') ? cur.to : S.b).slice(0, 2);
-  stopReplay(); S.lin = aid; S.linFocus = null; S.linView = 'region'; S.linMode = 'vendor';
+  stopReplay(); S.lin = aid; S.linFocus = null; S.linView = 'site'; S.linMode = 'vendor';
   if (S.b.slice(0, 2) !== curSite) S.b = curSite + '-B1';
   zoomTo('site');
   const moved6 = st.filter(s => s.t >= SIX_MO);
@@ -2777,8 +2890,8 @@ gestures($('plan'), {
   tap: id => { if (!id) return; if (id.startsWith('BLD:')) return S.view === 'cover' ? goView('building', id.slice(4)) : zoomTo('building', id.slice(4));
     if (id.startsWith('SITE:')) { const s2 = id.slice(5); return goView('site', S.b.startsWith(s2) ? S.b : BLD.find(b => b.startsWith(s2 + '-'))); } if (id.startsWith('STORE:')) return openStock(id.slice(6));
     if (id.startsWith('STEP:')) return focusStep(+id.slice(5)); openNav(id); },
-  canHold: id => id && !isZone(id) && !id.includes(':'),
-  hold: id => { S.tab = 'overview'; select(id); },
+  canHold: id => id && !isZone(id) && (!id.includes(':') || /^(BLD|SITE|STORE):/.test(id)),
+  hold: id => { if (/^(BLD|SITE|STORE):/.test(id)) { const [t, v] = id.split(':'); S.box = { t: t === 'BLD' ? 'bld' : t === 'SITE' ? 'site' : v === 'WH-CENTRAL' ? 'wh' : 'store', id: v }; HB = null; renderBox(); $('panel').classList.add('open'); $('scrim').classList.add('open'); return; } S.tab = 'overview'; select(id); },
   icon: 'i',
 });
 // lifecycle window: double-tap to close
