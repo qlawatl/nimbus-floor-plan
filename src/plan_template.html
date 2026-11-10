@@ -488,13 +488,29 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
   .subwin { width: min(640px, calc(100vw - 32px)); }
 }
 @media (max-width: 899px) { .subwin, .panel { max-height: min(88%, 88dvh); } }
-/* lineage window docks to the right column on wide screens so the drawing stays fully visible */
+/* desktop: every popup (details list, record list, lifecycle, lineage) docks in the right pane; the center stays the site map or bubbles */
 @media (min-width: 900px) {
-  #linwin { left: auto !important; top: 14px !important; bottom: 14px !important; max-height: none !important; margin: 0 !important;
+  #linwin, #lcwin, #subwin { left: auto !important; top: 14px !important; bottom: 14px !important; max-height: none !important; margin: 0 !important;
     right: max(clamp(12px, 2.4vw, 32px), calc((100vw - 1680px) / 2 + clamp(12px, 2.4vw, 32px))) !important; width: clamp(340px, 32vw, 520px) !important;
-    transform: translateX(28px) !important; opacity: 0; }
-  #linwin.open { transform: none !important; opacity: 1; }
+    transform: translateX(28px) !important; opacity: 0; border-radius: 12px; }
+  #linwin.open, #lcwin.open, #subwin.open { transform: none !important; opacity: 1; }
+  .peek { left: auto !important; top: 14px !important; bottom: 14px !important; max-height: none !important; margin: 0 !important;
+    right: max(clamp(12px, 2.4vw, 32px), calc((100vw - 1680px) / 2 + clamp(12px, 2.4vw, 32px))) !important; width: clamp(340px, 32vw, 520px) !important;
+    transform: translateX(28px) !important; }
+  .peek.on { transform: none !important; }
+  #subscrim, #lcscrim { display: none !important; }   /* no dimming: the center stays live while a popup is open */
 }
+/* peek close button, journey slider */
+.pk-h { position: relative; padding-right: 48px; } .pk-x { position: absolute; top: 8px; right: 10px; }
+.linslide { display: grid; gap: 4px; margin: 4px 0 6px; } .linslide input { width: 100%; accent-color: var(--accent); }
+.linslide span { font-size: 12px; color: var(--ink-2); }
+/* site / journey map zoom controls */
+.drawing { position: relative; }
+.zmctl { display: none; position: absolute; right: 12px; bottom: 34px; z-index: 3; flex-direction: column; gap: 4px; }
+body.zm-on .zmctl { display: flex; }
+.zmctl .tbtn { width: 34px; padding: 0; font-size: 17px; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+.zmctl .tbtn:disabled { opacity: .45; cursor: default; }
+body.zm-on .drawing svg { touch-action: none; cursor: grab; }
 /* month play bar removed from the main page */
 .timebar { display: none !important; }
 .tblbody { max-width: min(1200px, 100%); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
@@ -543,6 +559,7 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
     </div>
     <div class="drawing">
       <button type="button" class="zoombtn" id="zoomBtn">‹ Zoom out: site map</button>
+      <div class="zmctl" id="zmCtl" role="group" aria-label="Zoom map"><button type="button" class="tbtn" id="zmIn" aria-label="Zoom in">+</button><button type="button" class="tbtn" id="zmOut" aria-label="Zoom out">−</button><button type="button" class="tbtn" id="zmRst" aria-label="Reset zoom" disabled>⟲</button></div>
       <svg id="plan" viewBox="0 0 360 620" role="img" aria-label="Building floor plan"></svg>
       <div class="titleblock"><span id="tbName">—</span><span>DWG FP-01 · NOT TO SCALE</span></div>
     </div>
@@ -878,9 +895,54 @@ function siteSVG(site) {
   return h;
 }
 const lastLoc = a => a.mv.length ? D.sd[a.mv[a.mv.length - 1][3]] : null;
+/* zoom / pan on the site and journey maps: the viewBox is the camera; wheel, pinch, drag and the +/− buttons move it */
+const ZM = { key: '', base: [0, 0, 360, 620], vb: [0, 0, 360, 620], max: 6 };
+function zmSet(base, key) {
+  if (ZM.key !== key) { ZM.key = key; ZM.base = base; ZM.vb = base.slice(); }
+  $('plan').setAttribute('viewBox', ZM.vb.map(v => +v.toFixed(2)).join(' '));
+}
+function zmApply() { $('plan').setAttribute('viewBox', ZM.vb.map(v => +v.toFixed(2)).join(' ')); $('zmRst').disabled = ZM.vb[2] >= ZM.base[2] - .01; }
+function zmClamp(x, y, w, h) { const [bx, by, bw, bh] = ZM.base; return [Math.min(Math.max(x, bx), bx + bw - w), Math.min(Math.max(y, by), by + bh - h), w, h]; }
+function zmZoom(f, cx, cy) {   // f > 1 zooms in; (cx, cy) is the fixed point in map units
+  const [x, y, w, h] = ZM.vb, bw = ZM.base[2], nw = Math.min(bw, Math.max(bw / ZM.max, w / f)), k = nw / w;
+  ZM.vb = zmClamp(cx - (cx - x) * k, cy - (cy - y) * k, nw, h * k); zmApply();
+}
+function zmPan(dxPx, dyPx) { const m = $('plan').getScreenCTM(); if (!m) return; const [x, y, w, h] = ZM.vb; ZM.vb = zmClamp(x - dxPx / m.a, y - dyPx / m.d, w, h); zmApply(); }
+function zmPt(cx, cy) { const s = $('plan'), p = s.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(s.getScreenCTM().inverse()); }
+function zmCenterZoom(f) { const [x, y, w, h] = ZM.vb; zmZoom(f, x + w / 2, y + h / 2); }
+(function zmInit() {
+  const svg = $('plan'), ptr = new Map(); let moved = false, pinch = 0;
+  const on = () => document.body.classList.contains('zm-on');
+  svg.addEventListener('wheel', e => { if (!on()) return; e.preventDefault(); const p = zmPt(e.clientX, e.clientY); zmZoom(Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0018)), p.x, p.y); }, { passive: false });
+  svg.addEventListener('pointerdown', e => { if (!on()) return; ptr.set(e.pointerId, [e.clientX, e.clientY]); if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } }, true);
+  svg.addEventListener('pointermove', e => {
+    if (!on() || !ptr.has(e.pointerId)) return;
+    const prev = ptr.get(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptr.size === 2) {
+      const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = zmPt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      if (pinch && d) { zmZoom(d / pinch, mid.x, mid.y); } pinch = d; moved = true; return;
+    }
+    if (ptr.size === 1 && ZM.vb[2] < ZM.base[2] - .01) {
+      const dx = e.clientX - prev[0], dy = e.clientY - prev[1];
+      if (!moved && Math.hypot(e.clientX - svg.__x0, e.clientY - svg.__y0) < 6) return;
+      if (!moved) { moved = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} }
+      zmPan(dx, dy);
+    }
+  }, true);
+  const up = e => {
+    if (!ptr.has(e.pointerId)) return; ptr.delete(e.pointerId); pinch = 0;
+    if (moved) e.stopPropagation();          // a pan/pinch is not a tap: keep it from opening a unit
+    if (!ptr.size) moved = false;
+  };
+  svg.addEventListener('pointerup', up, true); svg.addEventListener('pointercancel', up, true);
+  svg.addEventListener('pointerdown', e => { svg.__x0 = e.clientX; svg.__y0 = e.clientY; }, true);
+  $('zmIn').onclick = () => zmCenterZoom(1.5); $('zmOut').onclick = () => zmCenterZoom(1 / 1.5);
+  $('zmRst').onclick = () => { ZM.vb = ZM.base.slice(); zmApply(); };
+})();
 function drawPlan() {
   const svg = $('plan');
   document.body.classList.toggle('oncover', S.view === 'cover');
+  document.body.classList.toggle('zm-on', S.view === 'site'); if (S.view !== 'site') ZM.key = '';
   renderWhere(); renderGroups(); renderSummary();
   if (S.view === 'cover') {
     const c = coverSVG();
@@ -894,7 +956,7 @@ function drawPlan() {
   if (S.view === 'site') {
     const site = S.b.slice(0, 2);
     const jr = S.lin && S.linView === 'region';
-    svg.setAttribute('viewBox', jr ? '0 0 360 456' : '0 0 360 620');
+    zmSet(jr ? [0, 0, 360, 456] : [0, 0, 360, 620], jr ? 'journey' : 'site'); $('zmRst').disabled = ZM.vb[2] >= ZM.base[2] - .01;
     svg.innerHTML = `<g class="view">${jr ? journeySVG(S.lin, site) : siteSVG(site) + (S.lin ? lineageSVG(S.lin, site) : '')}</g>`;
     $('tbName').textContent = `${D.names[site] || site} · ${jr ? 'journey map' : 'site map'}`;
   } else {
@@ -1500,6 +1562,23 @@ function tlGo(container, st, key) {   // crumb: jump to that level ('' = all tim
   tlRedraw(container, st, null, true);
   toast(key ? `${keyLabel(key, true)} · ${st.rows.length} records` : `All time · ${st.rows.length} records`);
 }
+// desktop: with a record list open, hovering another unit on the drawing swaps the bar chart and list to that unit; moving off restores them
+let HOVF = null;
+function hoverFilter(id) {
+  const b = CUR, el = b && b.peekEl, pg = b && b.__pg;
+  if (!el || !pg || !pg.m || pg.m === 'findings' || !el.contains(el.querySelector('.tl-chart'))) { HOVF = null; return; }
+  const span = el.querySelector('.pk-h span');
+  if (HOVF && HOVF.id === id) return;
+  if (!id || !P[id] || id === el.dataset.pid) {
+    if (!HOVF) return;
+    const bs = HOVF.base; HOVF = null; Object.assign(pg, { all: bs.all, rows: bs.rows, sel: bs.sel, view: bs.view }); tlRedraw(el, pg, null, true); span.textContent = bs.sub; return;
+  }
+  if (!HOVF) HOVF = { base: { all: pg.all, rows: pg.rows, sel: pg.sel, view: pg.view, sub: span.textContent } };
+  HOVF.id = id;
+  const all = recs(pg.m, id); Object.assign(pg, { all, rows: all, sel: null, view: null }); tlRedraw(el, pg, null, true);
+  span.textContent = `${all.length} record${all.length === 1 ? '' : 's'} · ${titleOf(id)} · hover preview`;
+}
+document.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const n = e.target.closest && e.target.closest('#plan .node'); hoverFilter(n ? n.dataset.id : null); });
 function openPeek(b, t) {
   const m = t.m || (b.parent && b.parent.m), id = t.id, item = t.kind === 'pos' ? null : t.item;
   let body = '', sub = '';
@@ -1516,8 +1595,8 @@ function openPeek(b, t) {
   }
   const el = document.createElement('div');
   el.className = 'peek'; el.__pgOf = b; el.dataset.pid = id; el.dataset.title = item ? (t.name || '').replace(/ → .*/, '') : (t.name || MTITLE[m]).replace(/ → .*/, ''); el.dataset.item = item || (t.kind === 'pos' ? t.id : '');
-  el.addEventListener('click', e => { const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); const tg = e.target.closest('[data-tlgo]'); if (tg) return tlGo(el, pg, tg.dataset.tlgo); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
-  el.innerHTML = `<div class="pk-h"><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
+  el.addEventListener('click', e => { if (e.target.closest('[data-pkclose]')) return closeDetails(); const pg = b.__pg; if (!pg) return; const mo = e.target.closest('[data-mon]'); if (mo) return monFilter(el, pg, mo.dataset.mon); const tg = e.target.closest('[data-tlgo]'); if (tg) return tlGo(el, pg, tg.dataset.tlgo); if (e.target.closest('[data-more]')) loadMore(el, pg.m, pg.rows, null); });
+  el.innerHTML = `<div class="pk-h"><button type="button" class="x pk-x" data-pkclose aria-label="Close list">×</button><b>${esc(t.name.replace(/ → .*/, ''))} · ${esc(MTITLE[m])}</b><span>${esc(sub)}</span></div>
     <div class="pk-b">${body || '<div class="note">Nothing recorded.</div>'}</div>
     <div class="pk-f">Lift your finger to keep this open</div>`;
   b.g.appendChild(el);
@@ -1559,6 +1638,7 @@ window.addEventListener('pointermove', e => { if (ph && Math.hypot(e.clientX - p
 window.addEventListener('pointerup', () => peekEnd(true));
 window.addEventListener('pointercancel', () => peekEnd(false));
 function closePeek(b) {
+  HOVF = null;
   const el = b.peekEl; b.peekEl = null;
   el.classList.remove('on'); setTimeout(() => el.remove(), 180);
   b.svg.querySelectorAll('.dwell').forEach(x => x.remove());
@@ -2156,7 +2236,7 @@ function gestures(el, { hitAt, tap, dbl, hold, canHold, instant, icon = '≡', s
   const cancel = () => { if (!st) return; clearTimeout(st.timer); clearTimeout(st.ringT); st.ring && st.ring.remove(); st = null; };
   el.addEventListener('pointerdown', e => {
     if (e.button > 0) return; if (stop) e.stopPropagation();
-    if (e.target.closest('button, a')) return;
+    if (e.target.closest('button, a, input')) return;
     cancel();
     const t = hitAt(e), x = e.clientX, y = e.clientY, ok = hold && (!canHold || canHold(t));
     st = { t, x, y, ring: null };
@@ -2207,16 +2287,15 @@ function showNav() {
       if (t && t.kind === 'back') return navBack();
       if (!t) return toast('Tap a circle · double-tap to go back');
       if (t.kind === 'back') return navBack();
-      if (t.kind === 'sub' && CUR.level === 1) return navPush({ id: t.id, m: t.m });
-      if (t.kind === 'sub') return openDetails(t);                                   // last level: no deeper drill
+      if (t.kind === 'sub') return openDetails(t);                                   // tap a bubble: its record list with the bar chart
       if (t.kind === 'pos' && t.id === NAV[NAV.length - 1].id) return toast('Hold for details · double-tap to go back');
       if (t.kind === 'pos') return navPush({ id: t.id });                            // connected unit or unit in a room
     },
     dbl: () => CUR && navBack(),
     instant: t => t && t.kind === 'back',
     canHold: t => t && t.kind !== 'back' && t.kind !== 'none' && !CUR.peekEl,
-    // hold a unit/asset bubble -> its lineage (journey) window; other bubbles keep their details list
-    hold: t => { const p = t && t.kind === 'pos' && P[t.id], aid = p && p.asset && p.asset.id; if (aid && D.lineage && D.lineage[aid]) return openLineage(aid); openDetails(t); },
+    // tap a metric bubble = record list + bar chart · hold an asset bubble = journey window · hold a metric bubble = break it down
+    hold: t => { const p = t && t.kind === 'pos' && P[t.id], aid = p && p.asset && p.asset.id; if (aid && D.lineage && D.lineage[aid]) return openLineage(aid); if (t && t.kind === 'sub' && CUR.level === 1) return navPush({ id: t.id, m: t.m }); openDetails(t); },
   });
 }
 function setHint() { updateCrumbs(); }
@@ -2231,8 +2310,7 @@ function updateCrumbs() {
   if (!$('lcwin').hidden) items.push({ label: 'Lifecycle', act: 'lc' });
   el.innerHTML = items.map((it, i) => i === items.length - 1
     ? `<b aria-current="page">${esc(it.label)}</b>`
-    : `<button type="button" data-act="${it.act}">${esc(it.label)}</button><span aria-hidden="true">›</span>`).join('')
-    + `<button type="button" class="modebtn" data-mode>${S.table ? '◎ Bubbles' : '▦ Table'}</button>`;
+    : `<button type="button" data-act="${it.act}">${esc(it.label)}</button><span aria-hidden="true">›</span>`).join('');
   el.hidden = false;
 }
 $('crumbs').addEventListener('click', e => {
@@ -2355,7 +2433,7 @@ function openUnitPeek(b, id) {
   el.className = 'peek'; el.dataset.pid = Z ? '' : id; el.dataset.title = 'Details';
   const stats = [[num(k.alarms), 'alarms'], [num(k.wos), 'work orders'], [num(k.open), 'open WOs'], [usd(k.spend), 'invoiced'], [num(k.labor), 'labor hrs'], [k.pm ? Math.round(100 * k.pmlate / k.pm) + '%' : '—', 'PMs late']];
   const recent = Z ? '' : `<div class="sect" style="margin-top:8px">Latest activity</div><ul class="tl">${evOf(id, 6).map(e => `<li class="${chainFor(id, e.e) ? 'lc' : ''}" data-ent="${esc(e.e)}"><span class="when">${e.ts.slice(0, 10)}</span><span class="what"><b>${EVT[e.t] || e.t}</b><div>${esc(e.x)}</div></span><span class="amt">${e.a == null ? '' : e.t === 'activity.logged' ? e.a + ' h' : usd(e.a)}</span></li>`).join('')}</ul>`;
-  el.innerHTML = `<div class="pk-h"><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
+  el.innerHTML = `<div class="pk-h"><button type="button" class="x pk-x" data-pkclose aria-label="Close details">×</button><b>${esc(titleOf(id))} · ${Z ? esc(p.b) + ' · ' + p.members.length + ' units' : esc(CLS[p.cls]) + ' · ' + esc(p.asset.mfr + ' ' + p.asset.model)}</b><span>${Z ? 'Room rollup' : esc([p.area, p.system].join(' › '))}</span></div>
     <div class="pk-b"><div class="grid4">${stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     ${fs.length ? `<div class="sect" style="margin-top:8px">Insights</div>${fs.slice(0, 4).map(f => `<div class="find" style="cursor:default"><span class="bar" style="background:var(${f.sev === 'critical' ? '--crit' : f.sev === 'warning' ? '--warn' : '--info'})"></span><span><span class="t">${esc(f.title)}</span><div class="d">${esc(f.detail)}</div></span><span></span></div>`).join('')}` : ''}
     ${Z ? '' : compsHTML(id)}
@@ -2365,7 +2443,7 @@ function openUnitPeek(b, id) {
   b.g.appendChild(el);
   requestAnimationFrame(() => el.classList.add('on'));
   b.peekEl = el; b.g.__b = b;
-  el.addEventListener('click', e => { const ln = e.target.closest('[data-lin]'); if (ln) return openLineage(ln.dataset.lin); const o = e.target.closest('[data-open]'); if (o) { const g = CUR.g; NAV = []; CUR = null; closeBurst(g); S.tab = 'overview'; select(o.dataset.open); } });
+  el.addEventListener('click', e => { if (e.target.closest('[data-pkclose]')) return closeDetails(); const ln = e.target.closest('[data-lin]'); if (ln) return openLineage(ln.dataset.lin); const o = e.target.closest('[data-open]'); if (o) { const g = CUR.g; NAV = []; CUR = null; closeBurst(g); S.tab = 'overview'; select(o.dataset.open); } });
 }
 
 /* ---------- components (breaker elements, VFD drives) tracked inside a position ---------- */
@@ -2555,7 +2633,8 @@ function linCtl(st) {
   const b = (attr, v, cur, label, dis) => `<button type="button" ${attr}="${v}" class="${cur === v ? 'on' : ''}"${dis ? ' disabled' : ''}>${label}</button>`;
   return `<div class="linctl"><span class="seg2">${b('data-linview', 'region', S.linView, 'Journey map')}${b('data-linview', 'site', S.linView, 'Site map')}</span>
     <span class="seg2">${b('data-linmode', 'vendor', S.linMode, 'From vendor')}${b('data-linmode', 'loop', S.linMode, 'Repair loop', !hasLoop)}</span>
-    <button type="button" class="replay" data-replay>▶ Replay route</button></div>`;
+    <button type="button" class="replay" data-replay>▶ Replay route</button></div>
+    <div class="linslide"><input type="range" id="linSlider" min="0" max="${st.length - 1}" step="1" value="${st.length - 1}" aria-label="Slide along the journey"><span id="linSlLbl" class="mono">Slide to step through the journey</span></div>`;
 }
 function linRefresh() {
   const st = linSteps(S.lin);
@@ -2563,7 +2642,17 @@ function linRefresh() {
   $('linBody').querySelectorAll('[data-linmode]').forEach(x => x.classList.toggle('on', x.dataset.linmode === S.linMode));
   $('linBody').querySelectorAll('.lin-list li').forEach(li => li.classList.toggle('out', !linIn(st, +li.dataset.step)));
   drawPlan();
+  const sl = $('linSlider'); if (sl) { const [a, b] = linRange(st, S.linMode); sl.min = a; sl.max = b; if (+sl.value < a || +sl.value > b) sl.value = b; }
 }
+// slider: scrub the journey step by step; a marker rides the map to that stop and the list scrolls to it
+function linSlide(k) {
+  const st = linSteps(S.lin), s = st[k]; if (!s) return; stopReplay(); focusStep(k, true);
+  const layer = $('plan').querySelector('.linlayer'), c = layer && layer.querySelector(`.stop[data-step="${k}"] circle`);
+  if (layer && c) { let dot = layer.querySelector('.jr-dot'); if (!dot) { dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); dot.setAttribute('r', 5.5); dot.setAttribute('class', 'jr-dot'); layer.appendChild(dot); }
+    dot.setAttribute('cx', c.getAttribute('cx')); dot.setAttribute('cy', c.getAttribute('cy')); }
+  $('linSlLbl').textContent = `${k + 1}/${st.length} · ${EVN[s.ev] || s.ev} · ${locName(s.to)} · ${new Date(s.t).toISOString().slice(0, 10)}`;
+}
+$('linBody').addEventListener('input', e => { if (e.target.id === 'linSlider') linSlide(+e.target.value); });
 // replay: a dot runs each leg of the current mode in order; the matching row is focused as it arrives
 let REPLAY = null;
 function stopReplay() { if (REPLAY) { REPLAY.stop = true; cancelAnimationFrame(REPLAY.raf); REPLAY = null; } document.querySelectorAll('#plan .jr-dot').forEach(x => x.remove()); const b = document.querySelector('#linBody [data-replay]'); if (b) b.textContent = '▶ Replay route'; }

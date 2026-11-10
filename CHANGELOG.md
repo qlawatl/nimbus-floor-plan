@@ -2,6 +2,15 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.12 — 2026-11-09 · branch `release/v10.12`
+- **Four views:** site map, asset bubbles, record list with bar chart, journey window.
+- **Site and journey maps zoom and pan:** wheel, pinch or drag, plus + / − / ⟲ buttons.
+- **Desktop right pane:** the details list, record list, lifecycle and lineage windows all dock in the right column. The center stays the site map or bubbles, and popups no longer dim it.
+- **Tap a metric bubble to open its record list and bar chart** (with a × to close). Hold a metric bubble to break it down; hold an asset bubble to open its journey.
+- **Hover preview (mouse):** with a record list open, hovering another unit on the drawing swaps the bar chart and list to that unit.
+- **Journey slider:** step through the journey; a marker moves along the map and the list follows.
+- **Removed the Table / Bubbles toggle** from the breadcrumb bar.
+
 ## v10.11 — 2026-11-09 · branch `release/v10.11`
 - **Hold an asset bubble to open its lineage.** Holding a unit's bubble in the burst view (the center bubble or a connected unit) opens that asset's lineage window. Other bubbles still open their details list.
 - **Lineage window docks to the side** on screens 900px wide or more, so the drawing and journey map stay fully visible. Phones keep the bottom sheet.
