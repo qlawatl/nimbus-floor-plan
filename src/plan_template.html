@@ -488,6 +488,15 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
   .subwin { width: min(640px, calc(100vw - 32px)); }
 }
 @media (max-width: 899px) { .subwin, .panel { max-height: min(88%, 88dvh); } }
+/* lineage window docks to the right column on wide screens so the drawing stays fully visible */
+@media (min-width: 900px) {
+  #linwin { left: auto !important; top: 14px !important; bottom: 14px !important; max-height: none !important; margin: 0 !important;
+    right: max(clamp(12px, 2.4vw, 32px), calc((100vw - 1680px) / 2 + clamp(12px, 2.4vw, 32px))) !important; width: clamp(340px, 32vw, 520px) !important;
+    transform: translateX(28px) !important; opacity: 0; }
+  #linwin.open { transform: none !important; opacity: 1; }
+}
+/* month play bar removed from the main page */
+.timebar { display: none !important; }
 .tblbody { max-width: min(1200px, 100%); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
 @media (hover: none) and (pointer: coarse) { .tbtn, .x, .controls .seg button { min-height: 40px; } }
 @media (max-width: 380px) { .controls { gap: 6px 8px; } }
@@ -566,7 +575,7 @@ h1 { font-size: clamp(19px, 1.2rem + .6vw, 26px); }
 <section class="tblwin" id="tblwin" hidden aria-label="Table view"><div class="tblbody" id="tblBody"></div></section>
 <section class="subwin linwin" id="linwin" hidden role="dialog" aria-labelledby="linTitle" style="z-index:42">
   <div class="grab" style="display:block"></div>
-  <div class="ph"><div class="ph-top"><div><h3 id="linTitle"></h3><div class="crumb" id="linCrumb"></div></div></div></div>
+  <div class="ph"><div class="ph-top"><div><h3 id="linTitle"></h3><div class="crumb" id="linCrumb"></div></div><button type="button" class="x" id="linClose" aria-label="Close lineage">×</button></div></div>
   <div class="pb" id="linBody"></div>
   <button type="button" class="totop" id="linTop" hidden>↑ Top</button>
 </section>
@@ -2206,7 +2215,8 @@ function showNav() {
     dbl: () => CUR && navBack(),
     instant: t => t && t.kind === 'back',
     canHold: t => t && t.kind !== 'back' && t.kind !== 'none' && !CUR.peekEl,
-    hold: t => openDetails(t),
+    // hold a unit/asset bubble -> its lineage (journey) window; other bubbles keep their details list
+    hold: t => { const p = t && t.kind === 'pos' && P[t.id], aid = p && p.asset && p.asset.id; if (aid && D.lineage && D.lineage[aid]) return openLineage(aid); openDetails(t); },
   });
 }
 function setHint() { updateCrumbs(); }
@@ -2619,7 +2629,9 @@ $('linBody').addEventListener('click', e => {
   if (e.target.closest('[data-replay]')) return replay();
   const n = e.target.closest('[data-step]'); if (n) focusStep(+n.dataset.step, n.tagName === 'LI'); });
 $('linBody').addEventListener('scroll', () => { $('linTop').hidden = $('linBody').scrollTop < 140; });
-$('linTop').onclick = () => $('linBody').scrollTo({ top: 0, behavior: 'smooth' });
+$('linClose').onclick = e => { e.stopPropagation(); closeLineage(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('linwin').hidden) { e.preventDefault(); closeLineage(); } }, true);
+$('linTop').onclick =() => $('linBody').scrollTo({ top: 0, behavior: 'smooth' });
 // storeroom stock: what's on the shelves now, each with its lineage
 function openStock(sr) { opened();
   const items = Object.entries(D.lineage).map(([aid, a]) => ({ aid, a, loc: lastLoc(a) })).filter(x => x.loc && x.loc.startsWith(sr));

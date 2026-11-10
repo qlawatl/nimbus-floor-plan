@@ -2,6 +2,12 @@
 
 Each version is one commit on `main`; the commit for each is listed below (`git checkout <commit>` to see that version). The page is published to the private artifact link after each release.
 
+## v10.11 — 2026-11-09 · branch `release/v10.11`
+- **Hold an asset bubble to open its lineage.** Holding a unit's bubble in the burst view (the center bubble or a connected unit) opens that asset's lineage window. Other bubbles still open their details list.
+- **Lineage window docks to the side** on screens 900px wide or more, so the drawing and journey map stay fully visible. Phones keep the bottom sheet.
+- **Lineage window has a × close button** (Esc and double-tap also close it).
+- **Month play bar (▶ / slider / All time) removed from the main page.** ▶ Replay route stays inside the lineage window.
+
 ## v10.10 — 2026-11-09 · branch `release/v10.10`
 - **Top boxes now read WOs · POs · Alarms · Insights,** in that order. Each follows the drill (all sites, site, building, zone, unit) and the owner filter.
   - **WOs:** total work orders, with the open count beneath.
